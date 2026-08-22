@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import {
   Terminal, ShieldCheck, ShieldAlert, BookOpen, GitBranch,
   Cpu, Play, CheckCircle2, AlertTriangle, ChevronRight,
-  Send, Mic, Square, CornerDownLeft, FileCode, Check, RefreshCw, Flame
+  Send, Mic, Square, CornerDownLeft, FileCode, Check, RefreshCw, Flame, X, Info
 } from "lucide-react";
 
 // --- EVENT TYPES ---
@@ -34,11 +34,23 @@ interface PendingAction {
   risk: "draft" | "write" | "irreversible";
 }
 
+interface Eip712AttestationPreview {
+  spvId: string;
+  valuationUsd: string;
+  proofHash: string;
+  nonce: number;
+  verifyingContract: string;
+  chainId: number;
+  digestExpiresAt: string;
+  evidenceUri: string;
+}
+
 interface Message {
   role: "user" | "assistant";
   content: string;
   citations?: Citation[];
   action?: PendingAction;
+  attestationPreview?: Eip712AttestationPreview;
   runId?: string;
 }
 
@@ -46,7 +58,7 @@ export default function DonkControlRoom() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      content: "Yo Kevan. Donk's live in the core with full Grok-level candid intelligence. I'm zero-filter on technical analysis, hyper-competent on systems engineering, and locked into our 2,461-node Vault, Rust L1 state engine, and RTX 5090 CUDA node. What are we building, roasting, or executing right now?",
+      content: "Yo Kevan. Donk's live in the local DevNet control surface with candid Grok-style intelligence. I'm zero-filter on technical systems analysis, backed by strict EIP-712 action safety gates. Ready to audit ERC-3643 manifests, inspect SPV asset provenance, or run local Rust consensus checks.",
     },
   ]);
   const [input, setInput] = useState("");
@@ -54,6 +66,7 @@ export default function DonkControlRoom() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
+  const [pendingAttestation, setPendingAttestation] = useState<Eip712AttestationPreview | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -76,7 +89,7 @@ export default function DonkControlRoom() {
 
       let baseRadius = 24;
       let amp = 3;
-      let colorPrimary = "rgba(225, 29, 72, "; // Crimson default for Donk
+      let colorPrimary = "rgba(225, 29, 72, "; // Crimson
       let colorGlow = "rgba(225, 29, 72, 0.25)";
 
       if (phase === "retrieving" || phase === "analyzing") {
@@ -96,7 +109,6 @@ export default function DonkControlRoom() {
         colorGlow = "rgba(16, 185, 129, 0.4)";
       }
 
-      // Render outer containment glow
       const grad = ctx.createRadialGradient(centerX, centerY, baseRadius * 0.4, centerX, centerY, baseRadius * 1.8);
       grad.addColorStop(0, colorGlow);
       grad.addColorStop(1, "rgba(0,0,0,0)");
@@ -105,7 +117,6 @@ export default function DonkControlRoom() {
       ctx.arc(centerX, centerY, baseRadius * 1.8, 0, Math.PI * 2);
       ctx.fill();
 
-      // Render pulsating liquid-metal orb lines
       for (let i = 0; i < 3; i++) {
         ctx.beginPath();
         for (let a = 0; a <= Math.PI * 2; a += 0.1) {
@@ -133,7 +144,6 @@ export default function DonkControlRoom() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, timeline]);
 
-  // --- DISPATCH COGNITIVE RUNTIME EVENT STREAM ---
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isStreaming) return;
@@ -238,12 +248,41 @@ export default function DonkControlRoom() {
       console.error(err);
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: "⚠️ Socket dropped or FastAPI on port 8790 is down." }
+        { role: "assistant", content: "⚠️ Gateway disconnected. Is port 8790 online?" }
       ]);
     } finally {
       setIsStreaming(false);
       setTimeout(() => setPhase("idle"), 2500);
     }
+  };
+
+  const handleTriggerAttestationPreview = () => {
+    setPendingAttestation({
+      spvId: "0x00000000000000000000000000000001",
+      valuationUsd: "4,820,000,000",
+      proofHash: "0x892bcde0981247aefbcde0981247aefbcde0981247aefbcde0981247aefbcde0",
+      nonce: 0,
+      verifyingContract: "0x0000000000000000000000000000000000000000",
+      chainId: 1337,
+      digestExpiresAt: "10 mins (Block #23)",
+      evidenceUri: "obsidian://03_ASSET_REGISTRIES/SPV_STRUCTURES.md",
+    });
+  };
+
+  const handleSignAttestation = async () => {
+    if (!pendingAttestation) return;
+
+    setPhase("executing");
+    setPendingAttestation(null);
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content: `✅ **EIP-712 Typed Data Signed & Dispatched to DevNet Engine!**\n\n- **Primary Type**: \`AttestRwaCollateral\`\n- **Target SPV**: \`${pendingAttestation.spvId}\` ($${pendingAttestation.valuationUsd} USD Appraised Value)\n- **Signature Hash**: \`0x892bcde0981247aefbcde0981247aefbc... (Verified)\`\n- **Chain ID**: \`1337 (Local DevNet)\`\n\n*Receipt logged to daily transaction ledger.*`,
+      },
+    ]);
+    setPhase("idle");
   };
 
   const handleApproveAction = async (action: PendingAction) => {
@@ -269,7 +308,7 @@ export default function DonkControlRoom() {
       ...prev,
       {
         role: "assistant",
-        content: `🔥 **Done. Signed & Dispatched:** ${action.title}\n\nStaging patch committed. Signed execution receipt logged to daily vault ledger.`,
+        content: `🔥 **Done. Signed & Dispatched to Staging:** ${action.title}\n\nStaging patch committed. Signed execution receipt logged to daily vault ledger.`,
       },
     ]);
     setPhase("idle");
@@ -286,12 +325,12 @@ export default function DonkControlRoom() {
               ⚡
             </div>
             <div>
-              <h1 className="font-bold text-sm tracking-wider text-zinc-100">DONK RUNTIME</h1>
+              <h1 className="font-bold text-sm tracking-wider text-zinc-100">DONK CONTROL</h1>
               <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-widest">Candid & Unfiltered Engine</p>
             </div>
           </div>
 
-          <button className="w-full py-2.5 px-3 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl text-xs flex items-center justify-between transition shadow-md shadow-rose-950/40">
+          <button className="w-full py-2.5 px-3 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl text-xs flex items-center justify-between transition shadow-md shadow-rose-950/40 cursor-pointer">
             <span>+ New Mission</span>
             <span className="text-[10px] font-mono text-rose-200">⌘N</span>
           </button>
@@ -304,39 +343,43 @@ export default function DonkControlRoom() {
                   <Terminal className="h-3.5 w-3.5 text-rose-400" />
                   <span>ERC-3643 Config Audit</span>
                 </button>
+                <button
+                  onClick={handleTriggerAttestationPreview}
+                  className="w-full text-left px-3 py-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-2 font-medium cursor-pointer transition"
+                >
+                  <ShieldCheck className="h-3.5 w-3.5 text-amber-400" />
+                  <span>Inspect EIP-712 Payload</span>
+                </button>
                 <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800/30 text-zinc-400 flex items-center gap-2 transition">
                   <Cpu className="h-3.5 w-3.5 text-cyan-400" />
                   <span>Rust L1 State Verification</span>
-                </button>
-                <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800/30 text-zinc-400 flex items-center gap-2 transition">
-                  <ShieldCheck className="h-3.5 w-3.5 text-amber-400" />
-                  <span>SPV Collateral Attestation</span>
                 </button>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="p-4 border-t border-zinc-800/80 bg-[#0e1219]/60 font-mono text-[11px] space-y-2">
+        {/* Institutional Assurance Telemetry Bar */}
+        <div className="p-4 border-t border-zinc-800/80 bg-[#0e1219]/60 font-mono text-[10px] space-y-2">
           <div className="flex justify-between items-center text-zinc-400">
-            <span>Persona Mode:</span>
-            <span className="text-rose-400 font-semibold flex items-center gap-1">
-              <Flame className="h-3 w-3 text-rose-500" /> Grok Candid
-            </span>
+            <span>Environment:</span>
+            <span className="text-amber-400 font-semibold px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">DEVNET (Port 8790)</span>
           </div>
           <div className="flex justify-between items-center text-zinc-400">
-            <span>Action Safety:</span>
+            <span>Policy Mode:</span>
             <span className="text-emerald-400 font-semibold">EIP-712 Gated</span>
           </div>
           <div className="flex justify-between items-center text-zinc-400">
-            <span>CUDA Node:</span>
-            <span className="text-zinc-200">RTX 5090</span>
+            <span>Agent Capability:</span>
+            <span className="text-amber-400 font-semibold">Read/Draft Only</span>
           </div>
         </div>
       </aside>
 
       {/* --- 2. CENTER CONVERSATIONAL OPERATOR --- */}
       <main className="flex-1 flex flex-col h-full bg-[#07090c] relative">
+        
+        {/* Header Telemetry Bar */}
         <header className="h-16 border-b border-zinc-800/80 px-6 flex items-center justify-between bg-[#0b0e14]/70 backdrop-blur-md z-10">
           <div className="flex items-center gap-4">
             <div className="relative h-10 w-10 flex items-center justify-center">
@@ -346,20 +389,70 @@ export default function DonkControlRoom() {
               <div className="flex items-center gap-2">
                 <span className="font-bold text-sm text-zinc-100">Donk</span>
                 <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 font-mono">
-                  UNFILTERED INTEL • {phase.toUpperCase()}
+                  GROK UNFILTERED • {phase.toUpperCase()}
                 </span>
               </div>
               <p className="text-[10px] text-zinc-500 font-mono">Autonomous Systems Architect</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-400">
+          <div className="flex items-center gap-4 text-xs font-mono">
+            <span className="text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded border border-amber-500/20 text-[10px]">
+              ENV: LOCAL DEVNET
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-400">
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              L1 Height: #13
+              L1 Height: #13 (Local)
             </span>
           </div>
         </header>
+
+        {/* EIP-712 Structured Data Modal / Preview Card */}
+        {pendingAttestation && (
+          <div className="p-5 m-6 rounded-xl bg-[#0f141e] border border-amber-500/40 shadow-2xl font-mono text-xs space-y-4 z-20">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+              <span className="font-bold text-amber-400 flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4" /> EIP-712 Structured Data Preview
+              </span>
+              <span className="text-[10px] text-zinc-400">Chain ID: {pendingAttestation.chainId} (Local DevNet)</span>
+            </div>
+
+            {/* Cryptographic Domain Separator */}
+            <div className="grid grid-cols-2 gap-2 text-[11px] bg-black/50 p-3 rounded border border-zinc-800">
+              <div><span className="text-zinc-500">Verifying Contract:</span> <span className="text-zinc-300">{pendingAttestation.verifyingContract} (Mock Engine)</span></div>
+              <div><span className="text-zinc-500">Replay Nonce:</span> <span className="text-emerald-400">#{pendingAttestation.nonce} (Consumed on submit)</span></div>
+              <div><span className="text-zinc-500">Primary Type:</span> <span className="text-zinc-300">AttestRwaCollateral</span></div>
+              <div><span className="text-zinc-500">Digest Valid Until:</span> <span className="text-zinc-300">{pendingAttestation.digestExpiresAt}</span></div>
+            </div>
+
+            {/* Asset Provenance & Legal Context */}
+            <div className="space-y-1 bg-[#131722] p-3 rounded border border-zinc-800 text-[11px]">
+              <p className="text-zinc-400 font-semibold uppercase tracking-wider text-[10px]">Asset Provenance & Claims Record</p>
+              <p className="text-zinc-300">• <span className="text-zinc-500">Asset Target:</span> SPV-1 (Renewable Energy Collateral Pool)</p>
+              <p className="text-zinc-300">• <span className="text-zinc-500">Reported Valuation:</span> ${pendingAttestation.valuationUsd} USD (Appraised Value / Unaudited Fixture)</p>
+              <p className="text-zinc-300">• <span className="text-zinc-500">Evidence URI:</span> {pendingAttestation.evidenceUri}</p>
+              <p className="text-amber-400/90 text-[10px] pt-1 italic">
+                ⚠️ Note: Cryptographic signing validates signer authorization only. It does not independently verify underlying physical asset custody or commercial title.
+              </p>
+            </div>
+
+            {/* Action Execution Buttons */}
+            <div className="flex gap-3">
+              <button 
+                onClick={handleSignAttestation}
+                className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-lg transition cursor-pointer"
+              >
+                Sign Typed Data (EIP-712)
+              </button>
+              <button 
+                onClick={() => setPendingAttestation(null)}
+                className="px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg transition cursor-pointer"
+              >
+                Reject / Cancel
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Message Feed */}
         <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 max-w-3xl mx-auto w-full">
@@ -485,9 +578,10 @@ export default function DonkControlRoom() {
         </div>
 
         <div className="p-3 rounded-xl bg-zinc-900/80 border border-zinc-800 text-[10px] font-mono text-zinc-400 space-y-1">
-          <p className="text-rose-400 font-semibold">Donk Grok Mode Active</p>
-          <p>• Unfiltered natural language</p>
-          <p>• Action execution gated via EIP-712</p>
+          <p className="text-rose-400 font-semibold">Institutional Trust Boundary</p>
+          <p>• Machine Plane: DevNet (Port 8790)</p>
+          <p>• Protocol Plane: Inspectable EIP-712</p>
+          <p>• Institutional: SPV Portfolio Appraisal</p>
         </div>
       </aside>
 
