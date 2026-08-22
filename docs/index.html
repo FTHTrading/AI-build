@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Donk Control Room — Institutional AI Operator & EIP-712 Assurance Surface</title>
+  <title>Donk Control Room — Institutional Grok Voice & AI Operator</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -33,39 +33,35 @@
     <!-- LEFT RAIL: Missions & Context -->
     <aside class="w-72 border-r border-zinc-800/80 bg-[#0b0e14] p-4 flex flex-col justify-between hidden lg:flex">
       <div class="space-y-5">
-        <!-- Brand Header -->
         <div class="flex items-center gap-3 px-1 pt-1">
           <div class="h-10 w-10 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-500 font-bold text-xl crimson-glow">
             ⚡
           </div>
           <div>
             <h1 class="font-bold text-sm tracking-wider text-zinc-100">DONK RUNTIME</h1>
-            <p class="text-[9px] text-zinc-400 font-mono uppercase tracking-widest">Unykorn LLC Core</p>
+            <p class="text-[9px] text-zinc-400 font-mono uppercase tracking-widest">Grok Voice & Intel</p>
           </div>
         </div>
 
-        <!-- New Mission Button -->
         <button onclick="resetMission()" class="w-full py-2.5 px-3 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-rose-900/30 cursor-pointer">
           <i class="fa-solid fa-plus text-xs"></i> New Mission
         </button>
 
-        <!-- Missions List -->
         <div class="space-y-2 pt-2">
-          <h2 class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest px-1">Active Missions</h2>
+          <h2 class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest px-1">Active Directives</h2>
           <nav class="space-y-1 text-xs">
-            <button class="w-full text-left px-3 py-2 rounded-lg bg-zinc-800/60 text-rose-400 border border-rose-500/30 flex items-center gap-2 font-medium">
+            <button onclick="triggerAuditFlow()" class="w-full text-left px-3 py-2 rounded-lg bg-zinc-800/60 text-rose-400 border border-rose-500/30 flex items-center gap-2 font-medium cursor-pointer">
               <i class="fa-solid fa-shield-halved text-rose-500"></i> ERC-3643 Config Audit
             </button>
             <button onclick="showPayloadModal()" class="w-full text-left px-3 py-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-2 font-medium transition cursor-pointer">
               <i class="fa-solid fa-file-signature text-amber-400"></i> Inspect EIP-712 Payload
             </button>
-            <button class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800/40 text-zinc-400 hover:text-zinc-200 flex items-center gap-2 transition">
-              <i class="fa-solid fa-microchip text-emerald-400"></i> Rust L1 State Sync
+            <button onclick="triggerRustTestFlow()" class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800/40 text-zinc-400 hover:text-zinc-200 flex items-center gap-2 transition cursor-pointer">
+              <i class="fa-solid fa-microchip text-emerald-400"></i> Rust Cargo Test Suite
             </button>
           </nav>
         </div>
 
-        <!-- Saved Runbooks -->
         <div class="space-y-2 pt-2">
           <h2 class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest px-1">Verified Runbooks</h2>
           <ul class="text-xs space-y-1 text-zinc-400 px-1 font-mono">
@@ -75,60 +71,58 @@
         </div>
       </div>
 
-      <!-- Institutional Telemetry Status Card -->
       <div class="p-3.5 bg-[#10141d] rounded-xl border border-zinc-800/90 text-xs font-mono space-y-2">
         <div class="flex justify-between items-center text-[10px] text-zinc-400">
+          <span>Voice Audio Stream:</span>
+          <button onclick="toggleVoice()" id="voice-btn-sidebar" class="text-emerald-400 font-semibold cursor-pointer flex items-center gap-1">
+            <i class="fa-solid fa-volume-high"></i> ON
+          </button>
+        </div>
+        <div class="flex justify-between text-[10px] text-zinc-400">
           <span>Environment:</span>
-          <span class="text-amber-400 font-semibold px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">DEVNET (Port 8790)</span>
+          <span class="text-amber-400 font-semibold px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">DEVNET</span>
         </div>
         <div class="flex justify-between text-[10px] text-zinc-400">
           <span>Policy Mode:</span>
           <span class="text-emerald-400 font-semibold">EIP-712 Gated</span>
-        </div>
-        <div class="flex justify-between text-[10px] text-zinc-400">
-          <span>Agent Capability:</span>
-          <span class="text-amber-400 font-semibold">Read/Draft Only</span>
         </div>
       </div>
     </aside>
 
     <!-- CENTER CONSOLE: Donk Avatar & Conversational Stream -->
     <main class="flex-1 flex flex-col h-full bg-[#07090c] relative">
-      <!-- Top Control-Room Header Bar -->
       <header class="h-16 border-b border-zinc-800/80 px-6 flex items-center justify-between bg-[#07090c]/90 backdrop-blur-md z-10">
         <div class="flex items-center gap-3">
-          <div class="relative flex items-center justify-center h-7 w-7">
+          <div class="relative flex items-center justify-center h-7 w-7 cursor-pointer" onclick="speakDonkText('Donk voice synthesis active.')">
             <div class="absolute inset-0 rounded-full border border-rose-500/40 orbit-ring"></div>
             <div class="h-3 w-3 rounded-full bg-rose-500 glow-dot"></div>
           </div>
           <div>
             <h2 class="font-bold text-sm text-zinc-100 flex items-center gap-2">
-              Donk <span class="text-[10px] px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 font-mono font-medium">GROK UNFILTERED INTEL</span>
+              Donk <span class="text-[10px] px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 font-mono font-medium">GROK VOICE INTEL</span>
             </h2>
           </div>
         </div>
 
         <div class="flex items-center gap-4 text-xs font-mono">
-          <span class="text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded border border-amber-500/20 text-[10px]">
-            ENV: LOCAL DEVNET
-          </span>
-          <span class="hidden md:inline text-zinc-400">L1 Height: <span class="text-emerald-400 font-semibold">#13 (Local Node)</span></span>
+          <button onclick="toggleVoice()" id="voice-toggle-top" class="px-3 py-1 bg-zinc-900 border border-zinc-800 text-emerald-400 rounded flex items-center gap-1.5 cursor-pointer">
+            <i class="fa-solid fa-volume-high"></i> Voice Output Active
+          </button>
           <a href="https://github.com/FTHTrading/AI-build" target="_blank" class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-200 transition font-sans flex items-center gap-1.5">
             <i class="fa-brands fa-github text-xs"></i> GitHub
           </a>
         </div>
       </header>
 
-      <!-- Event Status Strip -->
       <div id="status-strip" class="bg-[#0e121a] border-b border-zinc-800/60 px-6 py-2 flex items-center justify-between text-xs font-mono text-zinc-400">
         <div class="flex items-center gap-2">
           <span id="status-spinner" class="h-2 w-2 rounded-full bg-emerald-400 glow-dot"></span>
-          <span id="status-text" class="text-zinc-300 font-medium">System Ready. Awaiting mission directive...</span>
+          <span id="status-text" class="text-zinc-300 font-medium">System Ready. Awaiting voice or text directive...</span>
         </div>
-        <span class="text-[10px] text-amber-400 uppercase tracking-widest">Agent Cap: Read/Draft Only</span>
+        <span class="text-[10px] text-amber-400 uppercase tracking-widest">EIP-712 Protected</span>
       </div>
 
-      <!-- EIP-712 Inspection Modal (Hidden by Default) -->
+      <!-- EIP-712 Inspection Modal -->
       <div id="payload-modal" class="hidden p-5 m-6 rounded-xl bg-[#0f141e] border border-amber-500/40 shadow-2xl font-mono text-xs space-y-4 z-20">
         <div class="flex items-center justify-between border-b border-zinc-800 pb-2">
           <span class="font-bold text-amber-400 flex items-center gap-2">
@@ -166,33 +160,32 @@
 
       <!-- Main Message History Stream -->
       <div id="chat-stream" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 max-w-4xl mx-auto w-full">
-        <!-- Initial Greeting -->
         <div class="flex gap-4 items-start">
-          <div class="h-9 w-9 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 text-base shrink-0 crimson-glow font-bold">
+          <div onclick="speakDonkText('Yo Kevan. Donk is live with Grok voice synthesis. Speak or type your directive.')" class="h-9 w-9 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 text-base shrink-0 crimson-glow font-bold cursor-pointer" title="Click to speak">
             ⚡
           </div>
           <div class="glass-panel rounded-2xl p-5 text-sm text-zinc-200 leading-relaxed max-w-[85%] space-y-3">
-            <p>Yo Kevan. Donk's live in the local DevNet control surface with Grok-style candid intelligence. I'm zero-filter on technical systems analysis, backed by strict EIP-712 action safety gates. Ready to audit ERC-3643 manifests, inspect SPV asset provenance, or run local Rust consensus checks.</p>
+            <p>Yo Kevan. Donk's live with full Grok candid intelligence and real-time voice synthesis. Push the mic button or type ANY directive—I speak raw technical truth with zero filter out loud. What are we building, auditing, or executing right now?</p>
             <div class="p-3 bg-zinc-900/80 rounded-xl border border-zinc-800 text-xs font-mono space-y-1.5">
               <div class="text-rose-400 font-bold">Suggested Directives:</div>
               <div onclick="triggerAuditFlow()" class="text-zinc-300 hover:text-white cursor-pointer transition flex items-center gap-2">
                 <i class="fa-solid fa-magnifying-glass text-rose-500"></i> "Audit the ERC-3643 deployment config against vault policy."
               </div>
               <div onclick="showPayloadModal()" class="text-amber-400 hover:text-amber-300 cursor-pointer transition flex items-center gap-2 pt-1">
-                <i class="fa-solid fa-shield-halved text-amber-400"></i> "Inspect EIP-712 structured data payload & asset claims."
+                <i class="fa-solid fa-file-signature text-amber-400"></i> "Inspect EIP-712 structured data payload & asset claims."
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Composer Input -->
+      <!-- Composer Input with Mic & Voice Control -->
       <div class="p-4 md:p-6 bg-[#07090c] border-t border-zinc-800/80">
         <form id="chat-form" class="max-w-4xl mx-auto relative flex items-center">
-          <input type="text" id="user-input" placeholder="Directive for Donk (e.g. Audit repo, verify L1 state root, inspect EIP-712)..." class="w-full bg-[#0d1118] border border-zinc-700/60 rounded-xl px-4 py-3.5 pr-24 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-rose-500 transition shadow-inner">
-          <div class="absolute right-2.5 flex items-center gap-1">
-            <button type="button" onclick="triggerAuditFlow()" class="p-2 rounded-lg bg-zinc-800 text-zinc-300 hover:text-white transition text-xs font-mono cursor-pointer" title="Run Audit Flow">
-              <i class="fa-solid fa-play"></i>
+          <input type="text" id="user-input" placeholder="Speak or type your directive for Donk..." class="w-full bg-[#0d1118] border border-zinc-700/60 rounded-xl px-4 py-3.5 pr-28 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-rose-500 transition shadow-inner">
+          <div class="absolute right-2.5 flex items-center gap-1.5">
+            <button type="button" onclick="toggleMic()" id="mic-btn" class="p-2 rounded-lg bg-zinc-800 text-zinc-300 hover:text-white transition text-xs font-mono cursor-pointer" title="Push-to-Talk Voice Input">
+              <i class="fa-solid fa-microphone"></i>
             </button>
             <button type="submit" class="p-2 rounded-lg bg-rose-600 text-white hover:bg-rose-500 transition font-bold cursor-pointer">
               <i class="fa-solid fa-arrow-up"></i>
@@ -202,7 +195,7 @@
       </div>
     </main>
 
-    <!-- RIGHT RAIL: Collapsible Execution Trace & Artifacts -->
+    <!-- RIGHT RAIL: Execution Trace -->
     <aside id="right-rail" class="w-80 border-l border-zinc-800/80 bg-[#0b0e14] p-4 flex flex-col justify-between hidden xl:flex">
       <div class="space-y-4">
         <div class="flex items-center justify-between pb-2 border-b border-zinc-800">
@@ -212,14 +205,12 @@
           <span id="run-id-badge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-400">Idle</span>
         </div>
 
-        <!-- Step Trace Log -->
         <div id="trace-steps" class="space-y-2.5 text-xs font-mono">
           <div class="p-2.5 rounded bg-zinc-900/60 border border-zinc-800 text-zinc-400">
             <span class="text-zinc-500">00:00</span> Engine initialized in Local DevNet.
           </div>
         </div>
 
-        <!-- Retrieved Source Cards -->
         <div class="pt-2 space-y-2">
           <h4 class="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Retrieved Evidence</h4>
           <div id="evidence-cards" class="space-y-2 text-xs font-mono">
@@ -231,7 +222,6 @@
         </div>
       </div>
 
-      <!-- Pending Approval Card Container -->
       <div id="approval-container" class="space-y-2">
         <div class="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs space-y-2 font-mono">
           <div class="flex justify-between items-center text-amber-400 font-bold">
@@ -254,15 +244,105 @@
     const runIdBadge = document.getElementById('run-id-badge');
     const approvalContainer = document.getElementById('approval-container');
     const payloadModal = document.getElementById('payload-modal');
+    
+    let voiceEnabled = true;
+    let isListening = false;
+    let recognition = null;
+
+    function toggleVoice() {
+      voiceEnabled = !voiceEnabled;
+      const topBtn = document.getElementById('voice-toggle-top');
+      const sideBtn = document.getElementById('voice-btn-sidebar');
+      if (voiceEnabled) {
+        topBtn.innerHTML = '<i class="fa-solid fa-volume-high"></i> Voice Output Active';
+        topBtn.className = 'px-3 py-1 bg-zinc-900 border border-zinc-800 text-emerald-400 rounded flex items-center gap-1.5 cursor-pointer';
+        sideBtn.innerHTML = '<i class="fa-solid fa-volume-high"></i> ON';
+        sideBtn.className = 'text-emerald-400 font-semibold cursor-pointer flex items-center gap-1';
+        speakDonkText("Voice audio output enabled.");
+      } else {
+        topBtn.innerHTML = '<i class="fa-solid fa-volume-xmark"></i> Voice Muted';
+        topBtn.className = 'px-3 py-1 bg-zinc-900 border border-zinc-800 text-zinc-500 rounded flex items-center gap-1.5 cursor-pointer';
+        sideBtn.innerHTML = '<i class="fa-solid fa-volume-xmark"></i> OFF';
+        sideBtn.className = 'text-zinc-500 font-semibold cursor-pointer flex items-center gap-1';
+        window.speechSynthesis.cancel();
+      }
+    }
+
+    function speakDonkText(text) {
+      if (!voiceEnabled || !('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+
+      const cleanText = text.replace(/[*_#`~]/g, "").replace(/\[(.*?)\]\(.*?\)/g, "$1");
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.rate = 1.05;
+      utterance.pitch = 0.95;
+
+      const voices = window.speechSynthesis.getVoices();
+      const eng = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('David')));
+      if (eng) utterance.voice = eng;
+
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function toggleMic() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        alert("Browser Speech Recognition not supported in this environment. Type your directive.");
+        return;
+      }
+
+      const micBtn = document.getElementById('mic-btn');
+      if (isListening) {
+        if (recognition) recognition.stop();
+        isListening = false;
+        micBtn.className = 'p-2 rounded-lg bg-zinc-800 text-zinc-300 hover:text-white transition text-xs font-mono cursor-pointer';
+        statusText.innerText = "System Ready. Awaiting voice or text directive...";
+      } else {
+        recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        recognition.onstart = () => {
+          isListening = true;
+          micBtn.className = 'p-2 rounded-lg bg-amber-500 text-black animate-pulse font-bold text-xs font-mono cursor-pointer';
+          statusText.innerText = "Listening to your voice directive...";
+        };
+
+        recognition.onresult = (e) => {
+          const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
+          input.value = transcript;
+        };
+
+        recognition.onend = () => {
+          isListening = false;
+          micBtn.className = 'p-2 rounded-lg bg-zinc-800 text-zinc-300 hover:text-white transition text-xs font-mono cursor-pointer';
+          if (input.value.trim()) {
+            submitDirective(input.value.trim());
+            input.value = '';
+          }
+        };
+
+        recognition.start();
+      }
+    }
 
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       const text = input.value.trim();
       if (!text) return;
-      addUserMessage(text);
       input.value = '';
-      triggerAuditFlow();
+      submitDirective(text);
     });
+
+    function submitDirective(text) {
+      addUserMessage(text);
+      if (text.toLowerCase().includes('rust') || text.toLowerCase().includes('cargo')) {
+        triggerRustTestFlow();
+      } else {
+        triggerAuditFlow();
+      }
+    }
 
     function addUserMessage(text) {
       stream.innerHTML += `
@@ -275,38 +355,62 @@
       stream.scrollTop = stream.scrollHeight;
     }
 
-    function showPayloadModal() {
-      payloadModal.classList.remove('hidden');
-    }
-
-    function hidePayloadModal() {
-      payloadModal.classList.add('hidden');
-    }
+    function showPayloadModal() { payloadModal.classList.remove('hidden'); }
+    function hidePayloadModal() { payloadModal.classList.add('hidden'); }
 
     function approveAttestation() {
       hidePayloadModal();
-      statusText.innerText = "EIP-712 Signature verified! Dispatched to DevNet engine...";
-      
+      const msg = "Signed SPV 1 collateral attestation dispatched to DevNet engine.";
+      speakDonkText(msg);
+
       stream.innerHTML += `
         <div class="flex gap-4 items-start">
-          <div class="h-9 w-9 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 text-base shrink-0 crimson-glow font-bold">
-            ⚡
-          </div>
+          <div onclick="speakDonkText('${msg}')" class="h-9 w-9 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 text-base shrink-0 crimson-glow font-bold cursor-pointer">⚡</div>
           <div class="glass-panel rounded-2xl p-5 text-sm text-zinc-200 leading-relaxed max-w-[85%] space-y-3 font-mono">
             <div class="text-emerald-400 font-bold text-xs flex items-center gap-2">
               <i class="fa-solid fa-circle-check"></i> EIP-712 TYPED DATA SIGNATURE VERIFIED
             </div>
-            <p className="text-xs text-zinc-300">Signed SPV-1 collateral attestation ($4.82B USD Appraised Valuation) dispatched to local DevNet node.</p>
-            <div class="p-2.5 bg-black/60 rounded-lg border border-zinc-800 text-[10px] text-zinc-400 space-y-1">
-              <div>- <strong>Primary Type:</strong> AttestRwaCollateral</div>
-              <div>- <strong>Digest:</strong> 0x892bcde0981247aefbcde0981247aefbcde0981247aefbcde0981247aefbcde0</div>
-              <div>- <strong>Chain ID:</strong> 1337 (Local DevNet)</div>
-            </div>
+            <p class="text-xs text-zinc-300">Signed SPV-1 collateral attestation ($4.82B USD Appraised Valuation) dispatched to local DevNet node.</p>
           </div>
         </div>
       `;
       stream.scrollTop = stream.scrollHeight;
-      statusText.innerText = "System Ready. Mission completed successfully.";
+    }
+
+    function triggerRustTestFlow() {
+      const runId = 'run_' + Math.random().toString(36).substring(2, 9);
+      runIdBadge.innerText = runId;
+      statusText.innerText = "Running cargo test on unykorn-core workspace...";
+
+      traceSteps.innerHTML = `
+        <div class="p-2.5 rounded bg-zinc-900 border border-cyan-500/30 text-cyan-300">
+          <span class="text-cyan-500">[00:01]</span> Executed: cargo test --workspace
+        </div>
+      `;
+
+      setTimeout(() => {
+        const replyText = "Yo Kevan. The Rust workspace is solid. All 6 integration tests passed 100 percent clean. Sparse Merkle Tree roots and Borsh serialization verified.";
+        speakDonkText(replyText);
+
+        stream.innerHTML += `
+          <div class="flex gap-4 items-start">
+            <div onclick="speakDonkText('${replyText}')" class="h-9 w-9 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 text-base shrink-0 crimson-glow font-bold cursor-pointer">⚡</div>
+            <div class="glass-panel rounded-2xl p-5 text-sm text-zinc-200 leading-relaxed max-w-[85%] space-y-3">
+              <p>Yo Kevan. The Rust workspace is rock solid. All 6 integration tests passed 100% clean:</p>
+              <div class="p-3 bg-black/80 rounded-xl border border-zinc-800 text-xs font-mono text-emerald-400 space-y-1">
+                <div>✓ test_revert_on_invalid_nonce ... ok</div>
+                <div>✓ test_account_freezing_execution_block ... ok</div>
+                <div>✓ test_revert_on_insufficient_funds ... ok</div>
+                <div>✓ test_rwa_attestation_registry_and_merkle_commit ... ok</div>
+                <div>✓ test_state_root_determinism_and_mutation ... ok</div>
+                <div>✓ test_borsh_transaction_serialization_roundtrip ... ok</div>
+              </div>
+            </div>
+          </div>
+        `;
+        stream.scrollTop = stream.scrollHeight;
+        statusText.innerText = "System Ready. Integration suite passed 100%.";
+      }, 1500);
     }
 
     function triggerAuditFlow() {
@@ -321,143 +425,30 @@
       `;
 
       setTimeout(() => {
-        statusText.innerText = "Analyzing ERC-3643 compliance manifest vs vault policy...";
-        traceSteps.innerHTML += `
-          <div class="p-2.5 rounded bg-zinc-900 border border-cyan-500/30 text-cyan-300">
-            <span class="text-cyan-500">[00:02]</span> Inspected: unykorn-core/contracts/ERC3643.sol
-          </div>
-        `;
-      }, 1000);
+        const auditSpeech = "Yo Kevan. I audited the ERC 3643 deployment config. Discrepancy found: staging parameters missing emergency pauser role. Ready to draft patch.";
+        speakDonkText(auditSpeech);
 
-      setTimeout(() => {
-        statusText.innerText = "Audit findings ready. Preparing proposed patch...";
-        
         stream.innerHTML += `
           <div class="flex gap-4 items-start">
-            <div class="h-9 w-9 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 text-base shrink-0 crimson-glow font-bold">
-              ⚡
-            </div>
+            <div onclick="speakDonkText('${auditSpeech}')" class="h-9 w-9 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 text-base shrink-0 crimson-glow font-bold cursor-pointer">⚡</div>
             <div class="glass-panel rounded-2xl p-5 text-sm text-zinc-200 leading-relaxed max-w-[85%] space-y-4">
               <p>Yo Kevan. I audited the <strong>ERC-3643 deployment config</strong> against our Obsidian Vault policy rules. Here's the raw technical breakdown:</p>
-              
               <div class="p-3.5 bg-zinc-900/90 rounded-xl border border-zinc-800 text-xs font-mono space-y-2">
                 <div class="flex justify-between items-center text-amber-400 font-bold border-b border-zinc-800 pb-1">
                   <span>DISCREPANCY DETECTED</span>
                   <span>SEVERITY: MEDIUM</span>
                 </div>
                 <div class="text-zinc-300">- Identity Registry Owner differs from Treasury Gateway (`0xUNYKORN...`)</div>
-                <div class="text-zinc-300">- Transfer Compliance Rules missing SPV-1 whitelist claim</div>
-              </div>
-
-              <div class="flex gap-3 pt-1">
-                <button onclick="generatePatch()" class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition flex items-center gap-2 cursor-pointer shadow-md">
-                  <i class="fa-solid fa-code"></i> Generate Staging Patch
-                </button>
               </div>
             </div>
           </div>
         `;
         stream.scrollTop = stream.scrollHeight;
         statusText.innerText = "Awaiting user patch directive.";
-      }, 2000);
+      }, 1500);
     }
 
-    function generatePatch() {
-      statusText.innerText = "Drafting patch diff in isolated sandbox...";
-      
-      traceSteps.innerHTML += `
-        <div class="p-2.5 rounded bg-zinc-900 border border-purple-500/30 text-purple-300">
-          <span class="text-purple-500">[00:03]</span> Drafted Patch: patch_erc3643_config.diff
-        </div>
-      `;
-
-      setTimeout(() => {
-        stream.innerHTML += `
-          <div class="flex gap-4 items-start">
-            <div class="h-9 w-9 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 text-base shrink-0 crimson-glow font-bold">
-              ⚡
-            </div>
-            <div class="glass-panel rounded-2xl p-5 text-sm text-zinc-200 leading-relaxed max-w-[85%] space-y-4">
-              <p>I prepared the patch diff in an isolated sandbox. Review it before authorizing the commit to Staging:</p>
-              
-              <div class="p-3.5 bg-black/90 rounded-xl border border-zinc-800 text-xs font-mono text-emerald-400 overflow-x-auto space-y-1">
-                <div class="text-zinc-500">--- a/contracts/deploy_config.json</div>
-                <div class="text-zinc-500">+++ b/contracts/deploy_config.json</div>
-                <div class="text-rose-400">- "identity_registry": "0xOLD_UNTRUSTED_REGISTRY"</div>
-                <div class="text-emerald-400">+ "identity_registry": "0xUNYKORN_TREASURY_GATEWAY"</div>
-                <div class="text-emerald-400">+ "spv_collateral_auc": "4820000000"</div>
-              </div>
-            </div>
-          </div>
-        `;
-        stream.scrollTop = stream.scrollHeight;
-
-        approvalContainer.innerHTML = `
-          <div class="p-3 bg-rose-500/10 border border-rose-500/40 rounded-xl text-xs space-y-2.5 font-mono shadow-lg shadow-rose-950/40">
-            <div class="flex justify-between items-center text-rose-400 font-bold">
-              <span>APPROVAL REQUIRED</span>
-              <span class="text-[9px] px-1.5 py-0.5 rounded bg-rose-500/20 border border-rose-500/30">EIP-712</span>
-            </div>
-            <div class="text-[10px] text-zinc-300 space-y-1">
-              <div><strong>Action:</strong> Apply ERC-3643 Config Patch</div>
-              <div><strong>Env:</strong> Local DevNet / Staging</div>
-              <div><strong>Payload Hash:</strong> sha256:892b...e098</div>
-            </div>
-            <button onclick="approveAndSign()" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5">
-              <i class="fa-solid fa-file-signature"></i> Sign EIP-712 & Apply
-            </button>
-          </div>
-        `;
-        statusText.innerText = "Action paused. Pending EIP-712 approval signature.";
-      }, 1200);
-    }
-
-    function approveAndSign() {
-      statusText.innerText = "Signature verified! Dispatched write operation to Staging engine...";
-      
-      traceSteps.innerHTML += `
-        <div class="p-2.5 rounded bg-zinc-900 border border-emerald-500/30 text-emerald-300">
-          <span class="text-emerald-500">[00:04]</span> Signed EIP-712 Auth verified. Executed patch.
-        </div>
-      `;
-
-      approvalContainer.innerHTML = `
-        <div class="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-xs space-y-2 font-mono">
-          <div class="flex justify-between items-center text-emerald-400 font-bold">
-            <span>ACTION EXECUTED</span>
-            <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20">Success</span>
-          </div>
-          <div class="text-[10px] text-zinc-400">Run Receipt #run_991 signed & logged to daily ledger.</div>
-        </div>
-      `;
-
-      setTimeout(() => {
-        stream.innerHTML += `
-          <div class="flex gap-4 items-start">
-            <div class="h-9 w-9 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 text-base shrink-0 crimson-glow font-bold">
-              ⚡
-            </div>
-            <div class="glass-panel rounded-2xl p-5 text-sm text-zinc-200 leading-relaxed max-w-[85%] space-y-3">
-              <div class="flex items-center gap-2 text-emerald-400 font-bold text-xs font-mono">
-                <i class="fa-solid fa-circle-check"></i> EIP-712 EXECUTION RECEIPT VERIFIED
-              </div>
-              <p>The ERC-3643 deployment configuration patch has been cryptographically signed and applied to the <strong>Staging environment</strong>.</p>
-              <div class="p-3 bg-zinc-900/80 rounded-xl border border-zinc-800 text-xs font-mono text-zinc-400 space-y-1">
-                <div>- <strong>Transaction Hash</strong>: 0x892bcde0981247aefbcde0981247aefbcde...</div>
-                <div>- <strong>Updated Identity Registry</strong>: 0xUNYKORN_TREASURY_GATEWAY</div>
-                <div>- <strong>State Root Mutation</strong>: Confirmed in block #13</div>
-              </div>
-            </div>
-          </div>
-        `;
-        stream.scrollTop = stream.scrollHeight;
-        statusText.innerText = "System Ready. Mission completed successfully.";
-      }, 800);
-    }
-
-    function resetMission() {
-      location.reload();
-    }
+    function resetMission() { location.reload(); }
   </script>
 </body>
 </html>

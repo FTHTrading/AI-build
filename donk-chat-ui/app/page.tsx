@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import {
   Terminal, ShieldCheck, ShieldAlert, BookOpen, GitBranch,
   Cpu, Play, CheckCircle2, AlertTriangle, ChevronRight,
-  Send, Mic, Square, CornerDownLeft, FileCode, Check, RefreshCw, Flame, X, Info
+  Send, Mic, MicOff, Volume2, VolumeX, Square, CornerDownLeft, FileCode, Check, RefreshCw, Flame, X, Info
 } from "lucide-react";
 
 type EnginePhase = "idle" | "listening" | "retrieving" | "analyzing" | "awaiting_approval" | "executing" | "completed";
@@ -57,7 +57,7 @@ export default function DonkControlRoom() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      content: "Yo Kevan. Donk's live in the core with full Grok-level candid intelligence. Send me ANY directive—run Rust tests, search the vault, audit smart contracts, check CUDA nodes, or prepare patches. I speak straight technical truth with zero fluff. What are we executing right now?",
+      content: "Yo Kevan. Donk's live with full Grok candid intelligence and real-time voice synthesis. Push the mic button or type ANY directive—I speak raw technical truth with zero filter out loud. What are we building, auditing, or executing right now?",
     },
   ]);
   const [input, setInput] = useState("");
@@ -67,10 +67,81 @@ export default function DonkControlRoom() {
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [pendingAttestation, setPendingAttestation] = useState<Eip712AttestationPreview | null>(null);
   
+  // Realtime Audio & Voice Controls
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [isListeningMic, setIsListeningMic] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const recognitionRef = useRef<any>(null);
 
-  // --- 3D SPECTRAL CORE ANIMATION ---
+  // --- VOICE SYNTHESIS (DONK SPEAKS OUT LOUD) ---
+  const speakDonkText = (text: string) => {
+    if (!voiceEnabled || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel(); // Stop prior speech
+
+    // Clean markdown symbols for natural speech
+    const cleanText = text.replace(/[*_#`~]/g, "").replace(/\[(.*?)\]\(.*?\)/g, "$1");
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.rate = 1.05; // Fast, confident pace
+    utterance.pitch = 0.95; // Deep, confident tone
+
+    // Try to pick a crisp English voice
+    const voices = window.speechSynthesis.getVoices();
+    const englishVoice = voices.find((v) => v.lang.startsWith("en") && (v.name.includes("Natural") || v.name.includes("Google") || v.name.includes("David") || v.name.includes("Male")));
+    if (englishVoice) utterance.voice = englishVoice;
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // --- SPEECH-TO-TEXT (MIC ENGAGEMENT) ---
+  const toggleMicListening = () => {
+    if (typeof window === "undefined") return;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Browser Speech Recognition not supported. Type your directive directly.");
+      return;
+    }
+
+    if (isListeningMic) {
+      recognitionRef.current?.stop();
+      setIsListeningMic(false);
+      setPhase("idle");
+    } else {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = "en-US";
+
+      recognition.onstart = () => {
+        setIsListeningMic(true);
+        setPhase("listening");
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = Array.from(event.results)
+          .map((result: any) => result[0].transcript)
+          .join("");
+        setInput(transcript);
+      };
+
+      recognition.onend = () => {
+        setIsListeningMic(false);
+        setPhase("idle");
+      };
+
+      recognition.onerror = (err: any) => {
+        console.error("Speech Recognition Error:", err);
+        setIsListeningMic(false);
+        setPhase("idle");
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    }
+  };
+
+  // --- 3D SPECTRAL CORE & WAVEFORM ANIMATION ---
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -91,7 +162,12 @@ export default function DonkControlRoom() {
       let colorPrimary = "rgba(225, 29, 72, "; // Crimson
       let colorGlow = "rgba(225, 29, 72, 0.25)";
 
-      if (phase === "retrieving" || phase === "analyzing") {
+      if (phase === "listening") {
+        baseRadius = 28;
+        amp = 7;
+        colorPrimary = "rgba(245, 158, 11, "; // Amber
+        colorGlow = "rgba(245, 158, 11, 0.4)";
+      } else if (phase === "retrieving" || phase === "analyzing") {
         baseRadius = 26;
         amp = 6;
         colorPrimary = "rgba(56, 189, 248, "; // Cyan
@@ -143,7 +219,7 @@ export default function DonkControlRoom() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, timeline]);
 
-  // --- DYNAMIC DIRECTIVE DISPATCHER ---
+  // --- DYNAMIC DIRECTIVE DISPATCHER WITH AUDIO SYNTHESIS ---
   const handleSendDirective = async (promptText?: string) => {
     const userPrompt = (promptText || input).trim();
     if (!userPrompt || isStreaming) return;
@@ -182,6 +258,7 @@ export default function DonkControlRoom() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let fullSpeechContent = "";
 
       while (true) {
         const { value, done } = await reader.read();
@@ -229,6 +306,7 @@ export default function DonkControlRoom() {
               },
             ]);
           } else if (eventType === "delta") {
+            fullSpeechContent += data.text;
             setMessages((prev) => {
               const updated = [...prev];
               const last = updated[updated.length - 1];
@@ -248,6 +326,8 @@ export default function DonkControlRoom() {
             setTimeline((prev) =>
               prev.map((t) => ({ ...t, status: t.status === "running" ? "success" : t.status }))
             );
+            // Trigger Donk Voice Speech Output out loud!
+            speakDonkText(fullSpeechContent);
           }
         }
       }
@@ -282,6 +362,9 @@ export default function DonkControlRoom() {
     setPhase("executing");
     setPendingAttestation(null);
 
+    const speakMsg = `EIP 712 Typed Data Signed and Dispatched to DevNet Engine for SPV-1 collateral portfolio.`;
+    speakDonkText(speakMsg);
+
     setMessages((prev) => [
       ...prev,
       {
@@ -311,6 +394,9 @@ export default function DonkControlRoom() {
       body: JSON.stringify({ actionId: action.actionId }),
     });
 
+    const speakMsg = `Authorized and committed staging patch for ${action.title}.`;
+    speakDonkText(speakMsg);
+
     setMessages((prev) => [
       ...prev,
       {
@@ -333,11 +419,11 @@ export default function DonkControlRoom() {
             </div>
             <div>
               <h1 className="font-bold text-sm tracking-wider text-zinc-100">DONK RUNTIME</h1>
-              <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-widest">Grok Unfiltered Engine</p>
+              <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-widest">Grok Voice & Intel</p>
             </div>
           </div>
 
-          <button onClick={() => setMessages([{ role: "assistant", content: "Fresh session. What are we building, auditing, or executing?" }])} className="w-full py-2.5 px-3 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl text-xs flex items-center justify-between transition shadow-md shadow-rose-950/40 cursor-pointer">
+          <button onClick={() => setMessages([{ role: "assistant", content: "Fresh session. Speak or type your directive." }])} className="w-full py-2.5 px-3 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl text-xs flex items-center justify-between transition shadow-md shadow-rose-950/40 cursor-pointer">
             <span>+ New Mission</span>
             <span className="text-[10px] font-mono text-rose-200">⌘N</span>
           </button>
@@ -365,18 +451,20 @@ export default function DonkControlRoom() {
 
         <div className="p-4 border-t border-zinc-800/80 bg-[#0e1219]/60 font-mono text-[10px] space-y-2">
           <div className="flex justify-between items-center text-zinc-400">
-            <span>Environment:</span>
-            <span className="text-amber-400 font-semibold px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">DEVNET (Port 8790)</span>
+            <span>Voice Audio Stream:</span>
+            <button onClick={() => setVoiceEnabled(!voiceEnabled)} className="flex items-center gap-1 font-semibold cursor-pointer">
+              {voiceEnabled ? (
+                <span className="text-emerald-400 flex items-center gap-1"><Volume2 className="h-3.5 w-3.5" /> ON</span>
+              ) : (
+                <span className="text-zinc-500 flex items-center gap-1"><VolumeX className="h-3.5 w-3.5" /> OFF</span>
+              )}
+            </button>
           </div>
           <div className="flex justify-between items-center text-zinc-400">
             <span>Persona:</span>
             <span className="text-rose-400 font-semibold flex items-center gap-1">
-              <Flame className="h-3 w-3 text-rose-500" /> Grok Unfiltered
+              <Flame className="h-3 w-3 text-rose-500" /> Grok Voice
             </span>
-          </div>
-          <div className="flex justify-between items-center text-zinc-400">
-            <span>Action Safety:</span>
-            <span className="text-emerald-400 font-semibold">EIP-712 Gated</span>
           </div>
         </div>
       </aside>
@@ -385,14 +473,14 @@ export default function DonkControlRoom() {
       <main className="flex-1 flex flex-col h-full bg-[#07090c] relative">
         <header className="h-16 border-b border-zinc-800/80 px-6 flex items-center justify-between bg-[#0b0e14]/70 backdrop-blur-md z-10">
           <div className="flex items-center gap-4">
-            <div className="relative h-10 w-10 flex items-center justify-center">
+            <div className="relative h-10 w-10 flex items-center justify-center cursor-pointer" onClick={() => speakDonkText("Donk voice synthesis is active.")}>
               <canvas ref={canvasRef} width={80} height={80} className="w-10 h-10" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-bold text-sm text-zinc-100">Donk</span>
                 <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 font-mono">
-                  GROK CANDID INTEL • {phase.toUpperCase()}
+                  GROK VOICE INTEL • {phase.toUpperCase()}
                 </span>
               </div>
               <p className="text-[10px] text-zinc-500 font-mono">Autonomous Systems Architect</p>
@@ -400,13 +488,13 @@ export default function DonkControlRoom() {
           </div>
 
           <div className="flex items-center gap-4 text-xs font-mono">
-            <span className="text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded border border-amber-500/20 text-[10px]">
-              ENV: LOCAL DEVNET
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-400">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              L1 Height: #13 (Local)
-            </span>
+            <button
+              onClick={() => setVoiceEnabled(!voiceEnabled)}
+              className="px-3 py-1 rounded bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white flex items-center gap-1.5 cursor-pointer"
+            >
+              {voiceEnabled ? <Volume2 className="h-3.5 w-3.5 text-emerald-400" /> : <VolumeX className="h-3.5 w-3.5 text-zinc-500" />}
+              <span>{voiceEnabled ? "Voice Output Active" : "Voice Muted"}</span>
+            </button>
           </div>
         </header>
 
@@ -459,9 +547,13 @@ export default function DonkControlRoom() {
           {messages.map((msg, i) => (
             <div key={i} className={`flex gap-4 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
               {msg.role === "assistant" && (
-                <div className="h-8 w-8 rounded-xl bg-[#11141c] border border-rose-500/30 flex items-center justify-center text-rose-400 font-bold text-xs shrink-0 shadow-sm">
+                <button
+                  onClick={() => speakDonkText(msg.content)}
+                  className="h-8 w-8 rounded-xl bg-[#11141c] border border-rose-500/30 flex items-center justify-center text-rose-400 font-bold text-xs shrink-0 shadow-sm hover:border-rose-400 cursor-pointer"
+                  title="Speak response out loud"
+                >
                   ⚡
-                </div>
+                </button>
               )}
 
               <div className="space-y-3 max-w-[88%]">
@@ -520,17 +612,29 @@ export default function DonkControlRoom() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Composer */}
+        {/* Input Composer with Microphone & Speech Control */}
         <div className="p-4 md:p-6 bg-[#07090c] border-t border-zinc-800/80">
           <form onSubmit={(e) => { e.preventDefault(); handleSendDirective(); }} className="max-w-3xl mx-auto relative flex items-center">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Tell Donk what to build, test, audit, or execute..."
-              className="w-full bg-[#0f131a] border border-zinc-700/60 rounded-xl px-4 py-3.5 pr-20 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-rose-500 transition shadow-inner font-sans"
+              placeholder={isListeningMic ? "Listening to your voice directive..." : "Speak or type your directive for Donk..."}
+              className={`w-full bg-[#0f131a] border rounded-xl px-4 py-3.5 pr-28 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none transition shadow-inner font-sans ${
+                isListeningMic ? "border-amber-500 ring-1 ring-amber-500" : "border-zinc-700/60 focus:border-rose-500"
+              }`}
             />
             <div className="absolute right-2.5 flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={toggleMicListening}
+                className={`p-2 rounded-lg transition cursor-pointer ${
+                  isListeningMic ? "bg-amber-500 text-black animate-pulse font-bold" : "bg-zinc-800 text-zinc-300 hover:text-white"
+                }`}
+                title="Toggle Push-to-Talk Voice Input"
+              >
+                <Mic className="h-4 w-4" />
+              </button>
               <button
                 type="submit"
                 disabled={isStreaming || !input.trim()}
@@ -578,9 +682,9 @@ export default function DonkControlRoom() {
         </div>
 
         <div className="p-3 rounded-xl bg-zinc-900/80 border border-zinc-800 text-[10px] font-mono text-zinc-400 space-y-1">
-          <p className="text-rose-400 font-semibold">Donk Grok Unfiltered Engine</p>
-          <p>• Takes ANY user directive</p>
-          <p>• Real-time system execution & voice</p>
+          <p className="text-rose-400 font-semibold">Realtime Grok Voice Active</p>
+          <p>• Push-to-talk mic input</p>
+          <p>• Text-to-speech audio output</p>
           <p>• Action execution gated via EIP-712</p>
         </div>
       </aside>
