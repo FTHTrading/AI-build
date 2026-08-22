@@ -1,4 +1,4 @@
-FROM rust:1.80-slim AS builder
+FROM rust:latest AS builder
 WORKDIR /usr/src/unykorn
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
