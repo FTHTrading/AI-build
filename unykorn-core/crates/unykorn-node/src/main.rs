@@ -1,14 +1,9 @@
 use unykorn_crypto::{keccak256, Hash256};
 use unykorn_vm::{Instruction, Transaction, WorldState};
-use axum::{
-    routing::{get, post},
-    Json, Router,
-};
+use axum::{routing::get, Json, Router};
 use serde::Serialize;
 use std::net::SocketAddr;
-use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tokio::sync::RwLock;
 
 #[derive(Serialize)]
 struct NodeHealthResponse {
@@ -63,11 +58,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("[✓] State bootstrap complete! New Root: 0x{}", state_root);
     tracing::info!("[+] Verified RWA Asset AUC: ${}", valuation_usd);
 
+    let state_root_clone = state_root.clone();
+
     let app = Router::new()
-        .route("/", get(|| async { "UNYKORN L1 RUST IPC NODE ONLINE" })).route("/health", get(move || async move {
+        .route("/", get(|| async { "UNYKORN L1 RUST IPC NODE ONLINE" }))
+        .route("/health", get(move || async move {
             Json(NodeHealthResponse {
                 status: "ONLINE",
-                state_root: state_root.clone(),
+                state_root: state_root_clone.clone(),
                 total_auc_usd: valuation_usd,
                 uptime_seconds: get_current_timestamp() - start_time,
             })
@@ -76,7 +74,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Json(serde_json::json!({
                 "lifeline_state": "AutonomousActive",
                 "block_height": 13,
-                "latest_state_root": "0x513252c2cb9ea3ff7b553a5416b6c8ea340505b89c386dfb338034bb8a2b4ae4"
+                "latest_state_root": format!("0x{}", state_root)
             }))
         }));
 
