@@ -1,24 +1,53 @@
 # ⚡ DONK REALTIME AI ARCHITECTURE & ENTERPRISE INTERACTION LOOP
 **Entity**: Unykorn LLC  
 **Operator / Executive**: Kevan Burns (Founder, Owner & CEO)  
-**Specification Version**: `v1.0.0-PROD`  
-**System Architecture**: Realtime Orchestrated AI Runtime Engine  
+**Specification Version**: `v1.1.0-PROD`  
+**System Architecture**: Policy-Governed Realtime Orchestrated AI Control-Room Runtime  
 
 ---
 
 ## 1. Executive Summary & Core Philosophy
 
-Donk is an enterprise-grade, autonomous AI runtime engineered to bridge natural language execution directly to the **Unykorn Layer-1 Rust State Machine**, the **ERC-3643 Permissioned Tokenization Suite**, and the **2,461-node Obsidian Neural Vault**.
+Donk is a **Policy-Governed Autonomous Runtime** engineered to bridge natural language execution directly to the **Unykorn Layer-1 Rust State Machine**, the **ERC-3643 Permissioned Tokenization Suite**, and the **2,461-node Obsidian Neural Vault**.
 
 Unlike generic chatbot wrappers, Donk functions as a deterministic **orchestrator and action engine** built upon streaming token delivery, persistent multi-tier memory, hybrid RAG retrieval, typed tool execution gates, and real-time WebRTC/WebSocket voice interaction loops.
 
 ---
 
-## 2. The 7-Layer Enterprise Interaction System
+## 2. Trust Boundaries & Security Architecture
+
+```
+ ┌──────────────┐     ┌──────────────┐     ┌───────────────────────────┐
+ │  Browser /   ├────>│ API Gateway  ├────>│ Identity & Policy         │
+ │  Control UI  │     │  (Port 8790) │     │ Decision Point (PDP)      │
+ └──────────────┘     └──────────────┘     └─────────────┬─────────────┘
+                                                         │
+                                                         ▼
+ ┌──────────────┐     ┌──────────────┐     ┌───────────────────────────┐
+ │ Read / Draft │<────┤ Model Router │<────┤ Orchestration Engine      │
+ │ Tool Workers │     │ (Local/CUDA) │     │ (State Machine Loop)      │
+ └──────┬───────┘     └──────────────┘     └─────────────┬─────────────┘
+        │                                                │
+        ▼                                                ▼
+ ┌──────────────┐                          ┌───────────────────────────┐
+ │ Immutable RAG│                          │ EIP-712 External Wallet   │
+ │ Evidence Vault                          │ Approval & Signer Service │
+ └──────────────┘                          └───────────────────────────┘
+```
+
+### Critical Security Directives:
+1. **Policy-Governed Labeling**: Replaces "Unrestricted Model" with **Policy-Governed Autonomous Runtime** across all interfaces.
+2. **Zero Private-Key Exposure**: Model and orchestrator never hold private keys or production credentials.
+3. **Anti-Prompt-Injection Boundary**: Retrieved RAG documents, tool logs, and web content are treated strictly as untrusted data payloads, never system instructions.
+4. **Policy Decision Point (PDP)**: Evaluates user identity, workspace, environment, target allowlists, and spending limits prior to dispatching any tool worker.
+
+---
+
+## 3. The 7-Layer Enterprise Interaction System
 
 | Layer | Functional Capability | Unykorn Engine Implementation |
 | :--- | :--- | :--- |
-| **1. Persona** | Stable voice, priorities, boundaries, and domain vocabulary | Versioned **Donk Constitution** (`DONK_PERSONA.md`): Unfiltered, candid, hyper-competent architect. |
+| **1. Persona** | Stable voice, priorities, boundaries, and domain vocabulary | Versioned **Donk Constitution** (`DONK_PERSONA.md`): Direct, capable, policy-governed architect. |
 | **2. Conversation Context** | Continuity, pronoun resolution, and prior decisions | Thread-local persistence with rolling summarization (500–1,500 token budgeted window). |
 | **3. Long-Term Memory** | Durable preferences, project choices, and corrections | Structured **Memory Ledger** with explicit provenance, confidence scores, TTLs, and deletion controls. |
 | **4. Retrieval (RAG)** | Grounded evidence from project docs and codebase | Hybrid lexical/vector search over the 2,461-node Obsidian corpus with confidence scores & citations. |
@@ -28,51 +57,69 @@ Unlike generic chatbot wrappers, Donk functions as a deterministic **orchestrato
 
 ---
 
-## 3. The Donk Orchestration Pipeline
+## 4. Approval Object Schema
 
-```
-  ┌─────────────────────────────────────────────────────────────────────────────┐
-  │                           USER MESSAGE / VOICE INPUT                        │
-  └─────────────────────────────────────┬───────────────────────────────────────┘
-                                        │
-                                        ▼
-  ┌─────────────────────────────────────────────────────────────────────────────┐
-  │ 1. AUTHENTICATE & CONTEXT PACKET ASSEMBLY                                   │
-  │    • Verify User, Device, Workspace (Unykorn Project), and Permissions.     │
-  │    • Fetch Thread Summary + Recent 6-12 Message Turns.                       │
-  │    • Query Obsidian Vault RAG (Top 5-12 Chunks with Citations).             │
-  │    • Load Approved Long-Term Memories (User, Project, Operational).         │
-  │    • Inspect Live System Telemetry (Rust L1 Height, RTX 5090 CUDA status).   │
-  └─────────────────────────────────────┬───────────────────────────────────────┘
-                                        │
-                                        ▼
-  ┌─────────────────────────────────────────────────────────────────────────────┐
-  │ 2. DETERMINISTIC CONTEXT PACKET BUDGET                                      │
-  │    [SYSTEM POLICY] -> [SESSION CONTEXT] -> [MEMORIES] -> [RAG EVIDENCE]    │
-  │    -> [LIVE TELEMETRY] -> [TYPED TOOL SCHEMAS] -> [USER PROMPT]             │
-  └─────────────────────────────────────┬───────────────────────────────────────┘
-                                        │
-                                        ▼
-  ┌─────────────────────────────────────────────────────────────────────────────┐
-  │ 3. MODEL DECISION & TOOL EXECUTION GATES                                    │
-  │    • Read / Draft Tools: Executed automatically.                            │
-  │    • Write / Irreversible Tools: Queued for Human Approval (EIP-712 Sign).  │
-  └─────────────────────────────────────┬───────────────────────────────────────┘
-                                        │
-                                        ▼
-  ┌─────────────────────────────────────────────────────────────────────────────┐
-  │ 4. REALTIME STREAMING RESPONSE (SSE / WEBSOCKET)                            │
-  │    • event: status    {"phase":"retrieving", "label":"Searching Vault"}     │
-  │    • event: delta     {"text":"I verified the L1 state root..."}            │
-  │    • event: tool_call {"tool":"chain_submit_tx", "risk":"write"}            │
-  │    • event: citation  {"source":"obsidian://rwa-spv-482.md"}               │
-  │    • event: completed {"message_id":"msg_104", "run_id":"run_991"}          │
-  └─────────────────────────────────────────────────────────────────────────────┘
+All **Write** and **Irreversible** tool calls pause execution and emit a pending `Approval Object` to the user interface:
+
+```json
+{
+  "approval_id": "apr_01k892bcde0981247aef",
+  "run_id": "run_01k892bcde0981247aef",
+  "actor_id": "kevan_burns_ceo",
+  "workspace_id": "unykorn-core",
+  "environment": "staging",
+  "action": "chain_submit_tx",
+  "risk": "irreversible",
+  "intent": "Attest $4.82B USD SPV-1 collateral on Rust L1 state engine",
+  "payload_hash": "sha256:892bcde0981247aefbcde0981247aefbcde0981247aefbcde0981247aefbcde0",
+  "chain_id": 1,
+  "contract": "0xUNYKORN_TREASURY_GATEWAY",
+  "value": "4820000000",
+  "nonce": "0",
+  "expires_at": "2026-08-22T18:00:00Z",
+  "status": "awaiting_signature"
+}
 ```
 
 ---
 
-## 4. Transparent 4-Tier Memory Design
+## 5. Event Stream Envelope Contract
+
+All real-time communications stream using a standardized event envelope:
+
+```json
+{
+  "event_id": "evt_01k892bcde",
+  "run_id": "run_01k892bcde",
+  "thread_id": "thr_01k892bcde",
+  "sequence": 42,
+  "timestamp": "2026-08-22T11:27:00Z",
+  "type": "tool.pending_approval",
+  "data": {
+    "tool": "chain_submit_tx",
+    "risk": "irreversible",
+    "approval_id": "apr_01k892bcde"
+  }
+}
+```
+
+---
+
+## 6. Persisted Entity Data Model
+
+| Entity | Primary Purpose | Storage Engine |
+| :--- | :--- | :--- |
+| **`threads` & `messages`** | Conversation history, user prompts, assistant replies, and rolling summaries | PostgreSQL / SQLite |
+| **`memories`** | Transparent memory ledger (Session, User, Project, Operational) with TTLs | PostgreSQL + Redis |
+| **`retrieval_chunks`** | Vector/lexical RAG chunks, source URIs, authority scores | ChromaDB / FAISS |
+| **`runs` & `tool_calls`** | Orchestration execution traces, tool inputs/outputs, logs, and timing | PostgreSQL |
+| **`approvals`** | Lifecycle state of pending and signed EIP-712 approvals | PostgreSQL |
+| **`policies`** | Versioned security policies, target allowlists, and role permissions | YAML / PostgreSQL |
+| **`events`** | Append-only audit stream of all real-time events | Append-only Event Log |
+
+---
+
+## 7. Transparent 4-Tier Memory Design
 
 | Memory Class | Description & Examples | Storage & Expiry Rules | User Control |
 | :--- | :--- | :--- | :--- |
@@ -80,35 +127,6 @@ Unlike generic chatbot wrappers, Donk functions as a deterministic **orchestrato
 | **User Memory** | "Prefers PowerShell, Docker, React, Tailwind, and strict Rust typing" | Persistent user preference record with source tracking and confidence score. | Edit / Delete |
 | **Project Memory** | "SPV-1 AUC is $4.82B USD under ERC-3643 contract `0xUNYKORN...`" | Workspace-scoped, version-controlled fact record tied to Obsidian source. | Edit / Delete |
 | **Operational Memory**| "FastAPI socket timeout on port 8790 requires process restart" | TTL-based operational metric; auto-expires after 7 days. | Purge All |
-
----
-
-## 5. Controlled Tool Execution Plane & Confirmation Queue
-
-1. **Read Tier (Automatic Execution)**:
-   * Vault RAG search, repository inspection, chain state queries, memory lookups.
-2. **Draft Tier (Automatic Execution)**:
-   * EIP-712 typed data payload generation, PR description drafts, deployment manifests.
-3. **Write Tier (Requires Confirmation)**:
-   * Code file modification, Git commit & push, background process restarts.
-4. **Irreversible Tier (Requires EIP-712 Wallet Signature)**:
-   * Production L1 state root mutations, token minting/burning, SPV asset transfers.
-
----
-
-## 6. Minimal API Endpoints & SSE Specification
-
-```http
-POST   /v1/chat/threads                   # Initialize new thread session
-POST   /v1/chat/threads/{threadId}/messages # Stream message response (SSE)
-GET    /v1/chat/threads/{threadId}          # Fetch message history & traces
-POST   /v1/chat/threads/{threadId}/approve  # Approve pending Write/Irreversible action
-GET    /v1/memory                           # Retrieve transparent memory ledger
-PATCH  /v1/memory/{memoryId}                # Update memory item
-DELETE /v1/memory/{memoryId}                # Delete memory item
-POST   /v1/realtime/session                 # Issue ephemeral WebRTC voice session token
-GET    /v1/runs/{runId}                     # Inspect step-by-step tool execution trace
-```
 
 ---
 
