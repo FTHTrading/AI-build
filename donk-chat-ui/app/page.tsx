@@ -7,7 +7,6 @@ import {
   Send, Mic, Square, CornerDownLeft, FileCode, Check, RefreshCw, Flame, X, Info
 } from "lucide-react";
 
-// --- EVENT TYPES ---
 type EnginePhase = "idle" | "listening" | "retrieving" | "analyzing" | "awaiting_approval" | "executing" | "completed";
 
 interface TimelineEvent {
@@ -58,7 +57,7 @@ export default function DonkControlRoom() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      content: "Yo Kevan. Donk's live in the local DevNet control surface with candid Grok-style intelligence. I'm zero-filter on technical systems analysis, backed by strict EIP-712 action safety gates. Ready to audit ERC-3643 manifests, inspect SPV asset provenance, or run local Rust consensus checks.",
+      content: "Yo Kevan. Donk's live in the core with full Grok-level candid intelligence. Send me ANY directive—run Rust tests, search the vault, audit smart contracts, check CUDA nodes, or prepare patches. I speak straight technical truth with zero fluff. What are we executing right now?",
     },
   ]);
   const [input, setInput] = useState("");
@@ -71,7 +70,7 @@ export default function DonkControlRoom() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // --- 3D SPECTRAL CORE / WAVEFORM RENDERING ---
+  // --- 3D SPECTRAL CORE ANIMATION ---
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -144,18 +143,26 @@ export default function DonkControlRoom() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, timeline]);
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isStreaming) return;
+  // --- DYNAMIC DIRECTIVE DISPATCHER ---
+  const handleSendDirective = async (promptText?: string) => {
+    const userPrompt = (promptText || input).trim();
+    if (!userPrompt || isStreaming) return;
 
-    const userPrompt = input.trim();
     setInput("");
     setIsStreaming(true);
     setPhase("retrieving");
 
     const runId = `run_${Math.random().toString(36).substring(2, 7)}`;
     setActiveRunId(runId);
-    setTimeline([]);
+    setTimeline([
+      {
+        id: Math.random().toString(),
+        phase: "init",
+        label: `Directive Dispatched: ${userPrompt.slice(0, 25)}...`,
+        status: "running",
+        timestamp: new Date().toLocaleTimeString(),
+      }
+    ]);
 
     setMessages((prev) => [...prev, { role: "user", content: userPrompt }]);
     setMessages((prev) => [
@@ -215,7 +222,7 @@ export default function DonkControlRoom() {
               {
                 id: Math.random().toString(),
                 phase: "tool",
-                label: `Invoked Tool: ${data.tool}`,
+                label: `Executed Tool: ${data.tool}`,
                 status: data.status === "completed" ? "success" : "running",
                 timestamp: new Date().toLocaleTimeString(),
                 details: JSON.stringify(data.parameters || {}),
@@ -248,7 +255,7 @@ export default function DonkControlRoom() {
       console.error(err);
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: "⚠️ Gateway disconnected. Is port 8790 online?" }
+        { role: "assistant", content: "⚠️ Gateway connection failed. Check vault_api_server.py on port 8790." }
       ]);
     } finally {
       setIsStreaming(false);
@@ -325,61 +332,57 @@ export default function DonkControlRoom() {
               ⚡
             </div>
             <div>
-              <h1 className="font-bold text-sm tracking-wider text-zinc-100">DONK CONTROL</h1>
-              <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-widest">Candid & Unfiltered Engine</p>
+              <h1 className="font-bold text-sm tracking-wider text-zinc-100">DONK RUNTIME</h1>
+              <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-widest">Grok Unfiltered Engine</p>
             </div>
           </div>
 
-          <button className="w-full py-2.5 px-3 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl text-xs flex items-center justify-between transition shadow-md shadow-rose-950/40 cursor-pointer">
+          <button onClick={() => setMessages([{ role: "assistant", content: "Fresh session. What are we building, auditing, or executing?" }])} className="w-full py-2.5 px-3 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl text-xs flex items-center justify-between transition shadow-md shadow-rose-950/40 cursor-pointer">
             <span>+ New Mission</span>
             <span className="text-[10px] font-mono text-rose-200">⌘N</span>
           </button>
 
           <div className="space-y-4">
             <div>
-              <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest px-2 mb-2">Active Missions</p>
+              <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest px-2 mb-2">Directives Menu</p>
               <div className="space-y-1 text-xs">
-                <button className="w-full text-left px-3 py-2 rounded-lg bg-zinc-800/60 text-rose-400 border border-rose-500/30 flex items-center gap-2 font-medium">
+                <button onClick={() => handleSendDirective("Audit the ERC-3643 deployment config against vault policy.")} className="w-full text-left px-3 py-2 rounded-lg bg-zinc-800/60 text-rose-400 border border-rose-500/30 flex items-center gap-2 font-medium cursor-pointer hover:bg-rose-500/10 transition">
                   <Terminal className="h-3.5 w-3.5 text-rose-400" />
                   <span>ERC-3643 Config Audit</span>
                 </button>
-                <button
-                  onClick={handleTriggerAttestationPreview}
-                  className="w-full text-left px-3 py-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-2 font-medium cursor-pointer transition"
-                >
+                <button onClick={() => handleSendDirective("Run cargo test on unykorn-core workspace and verify state root.")} className="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800/30 text-zinc-300 flex items-center gap-2 transition cursor-pointer">
+                  <Cpu className="h-3.5 w-3.5 text-cyan-400" />
+                  <span>Run Cargo Integration Tests</span>
+                </button>
+                <button onClick={handleTriggerAttestationPreview} className="w-full text-left px-3 py-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-2 font-medium cursor-pointer transition">
                   <ShieldCheck className="h-3.5 w-3.5 text-amber-400" />
                   <span>Inspect EIP-712 Payload</span>
-                </button>
-                <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800/30 text-zinc-400 flex items-center gap-2 transition">
-                  <Cpu className="h-3.5 w-3.5 text-cyan-400" />
-                  <span>Rust L1 State Verification</span>
                 </button>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Institutional Assurance Telemetry Bar */}
         <div className="p-4 border-t border-zinc-800/80 bg-[#0e1219]/60 font-mono text-[10px] space-y-2">
           <div className="flex justify-between items-center text-zinc-400">
             <span>Environment:</span>
             <span className="text-amber-400 font-semibold px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">DEVNET (Port 8790)</span>
           </div>
           <div className="flex justify-between items-center text-zinc-400">
-            <span>Policy Mode:</span>
-            <span className="text-emerald-400 font-semibold">EIP-712 Gated</span>
+            <span>Persona:</span>
+            <span className="text-rose-400 font-semibold flex items-center gap-1">
+              <Flame className="h-3 w-3 text-rose-500" /> Grok Unfiltered
+            </span>
           </div>
           <div className="flex justify-between items-center text-zinc-400">
-            <span>Agent Capability:</span>
-            <span className="text-amber-400 font-semibold">Read/Draft Only</span>
+            <span>Action Safety:</span>
+            <span className="text-emerald-400 font-semibold">EIP-712 Gated</span>
           </div>
         </div>
       </aside>
 
       {/* --- 2. CENTER CONVERSATIONAL OPERATOR --- */}
       <main className="flex-1 flex flex-col h-full bg-[#07090c] relative">
-        
-        {/* Header Telemetry Bar */}
         <header className="h-16 border-b border-zinc-800/80 px-6 flex items-center justify-between bg-[#0b0e14]/70 backdrop-blur-md z-10">
           <div className="flex items-center gap-4">
             <div className="relative h-10 w-10 flex items-center justify-center">
@@ -389,7 +392,7 @@ export default function DonkControlRoom() {
               <div className="flex items-center gap-2">
                 <span className="font-bold text-sm text-zinc-100">Donk</span>
                 <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 font-mono">
-                  GROK UNFILTERED • {phase.toUpperCase()}
+                  GROK CANDID INTEL • {phase.toUpperCase()}
                 </span>
               </div>
               <p className="text-[10px] text-zinc-500 font-mono">Autonomous Systems Architect</p>
@@ -407,7 +410,7 @@ export default function DonkControlRoom() {
           </div>
         </header>
 
-        {/* EIP-712 Structured Data Modal / Preview Card */}
+        {/* EIP-712 Inspection Card */}
         {pendingAttestation && (
           <div className="p-5 m-6 rounded-xl bg-[#0f141e] border border-amber-500/40 shadow-2xl font-mono text-xs space-y-4 z-20">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
@@ -417,7 +420,6 @@ export default function DonkControlRoom() {
               <span className="text-[10px] text-zinc-400">Chain ID: {pendingAttestation.chainId} (Local DevNet)</span>
             </div>
 
-            {/* Cryptographic Domain Separator */}
             <div className="grid grid-cols-2 gap-2 text-[11px] bg-black/50 p-3 rounded border border-zinc-800">
               <div><span className="text-zinc-500">Verifying Contract:</span> <span className="text-zinc-300">{pendingAttestation.verifyingContract} (Mock Engine)</span></div>
               <div><span className="text-zinc-500">Replay Nonce:</span> <span className="text-emerald-400">#{pendingAttestation.nonce} (Consumed on submit)</span></div>
@@ -425,7 +427,6 @@ export default function DonkControlRoom() {
               <div><span className="text-zinc-500">Digest Valid Until:</span> <span className="text-zinc-300">{pendingAttestation.digestExpiresAt}</span></div>
             </div>
 
-            {/* Asset Provenance & Legal Context */}
             <div className="space-y-1 bg-[#131722] p-3 rounded border border-zinc-800 text-[11px]">
               <p className="text-zinc-400 font-semibold uppercase tracking-wider text-[10px]">Asset Provenance & Claims Record</p>
               <p className="text-zinc-300">• <span className="text-zinc-500">Asset Target:</span> SPV-1 (Renewable Energy Collateral Pool)</p>
@@ -436,7 +437,6 @@ export default function DonkControlRoom() {
               </p>
             </div>
 
-            {/* Action Execution Buttons */}
             <div className="flex gap-3">
               <button 
                 onClick={handleSignAttestation}
@@ -522,12 +522,12 @@ export default function DonkControlRoom() {
 
         {/* Input Composer */}
         <div className="p-4 md:p-6 bg-[#07090c] border-t border-zinc-800/80">
-          <form onSubmit={handleSend} className="max-w-3xl mx-auto relative flex items-center">
+          <form onSubmit={(e) => { e.preventDefault(); handleSendDirective(); }} className="max-w-3xl mx-auto relative flex items-center">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask Donk anything—unfiltered analysis, L1 audits, or staging patches..."
+              placeholder="Tell Donk what to build, test, audit, or execute..."
               className="w-full bg-[#0f131a] border border-zinc-700/60 rounded-xl px-4 py-3.5 pr-20 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-rose-500 transition shadow-inner font-sans"
             />
             <div className="absolute right-2.5 flex items-center gap-1.5">
@@ -578,10 +578,10 @@ export default function DonkControlRoom() {
         </div>
 
         <div className="p-3 rounded-xl bg-zinc-900/80 border border-zinc-800 text-[10px] font-mono text-zinc-400 space-y-1">
-          <p className="text-rose-400 font-semibold">Institutional Trust Boundary</p>
-          <p>• Machine Plane: DevNet (Port 8790)</p>
-          <p>• Protocol Plane: Inspectable EIP-712</p>
-          <p>• Institutional: SPV Portfolio Appraisal</p>
+          <p className="text-rose-400 font-semibold">Donk Grok Unfiltered Engine</p>
+          <p>• Takes ANY user directive</p>
+          <p>• Real-time system execution & voice</p>
+          <p>• Action execution gated via EIP-712</p>
         </div>
       </aside>
 
