@@ -1,6 +1,5 @@
-use borsh::{BorshDeserialize, BorshSerialize};
 use unykorn_crypto::{keccak256, Hash256};
-use unykorn_vm::{AccountState, Instruction, RwaRecord, Transaction, VmError, WorldState};
+use unykorn_vm::{AccountState, Instruction, Transaction, VmError, WorldState};
 
 fn mock_address(id: u8) -> [u8; 20] {
     let mut addr = [0u8; 20];
