@@ -38,9 +38,9 @@ export default function DonkChatApp() {
   const handleQuickAttest = async () => {
     try {
       const spvId = "0x00000000000000000000000000000001" as `0x${string}`; // SPV-1
-      const valuation = 4820000000n; // $4.82B USD
+      const valuation = BigInt("4820000000"); // $4.82B USD
       const proofHash = "0x892bcde0981247aefbcde0981247aefbcde0981247aefbcde0981247aefbcde0" as `0x${string}`;
-      const nonce = 0n;
+      const nonce = BigInt(0);
 
       const result = await signAndSubmitAttestation(spvId, valuation, proofHash, nonce);
 
