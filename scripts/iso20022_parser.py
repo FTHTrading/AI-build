@@ -1,64 +1,104 @@
-import xml.etree.ElementTree as ET
+import re
 import hashlib
+import xml.etree.ElementTree as ET
+from datetime import datetime
 from typing import Dict, Any
 
 class Iso20022Engine:
-    NAMESPACES = {
-        'camt054': 'urn:iso:std:iso:20022:tech:xsd:camt.054.001.08',
-        'pain001': 'urn:iso:std:iso:20022:tech:xsd:pain.001.001.09',
-        'camt053': 'urn:iso:std:iso:20022:tech:xsd:camt.053.001.08'
-    }
-
     @staticmethod
-    def parse_camt054_credit(xml_content: str) -> Dict[str, Any]:
-        """Parses real-time inbound wire/escrow credit notification."""
-        root = ET.fromstring(xml_content)
-        
-        # Remove namespace prefixes for fast tag resolution
-        for elem in root.iter():
-            if '}' in elem.tag:
-                elem.tag = elem.tag.split('}', 1)[1]
+    def parse_camt054_credit(xml_string: str) -> Dict[str, Any]:
+        """Parses an inbound ISO 20022 camt.054.001.08 Credit Notification."""
+        clean_xml = re.sub(r'\sxmlns="[^"]+"', '', xml_string, count=1)
+        root = ET.fromstring(clean_xml)
 
-        msg_id = root.findtext('.//MsgId', default='UNKNOWN_MSG')
-        escrow_acct = root.findtext('.//Acct/Id/Othr/Id', default='UNKNOWN_ESCROW')
-        bank_bic = root.findtext('.//Svcr/FinInstnId/ClrSysMmbId/MmbId', default='021000021')
-        
-        amt_elem = root.find('.//Ntry/Amt')
-        amount_usd = float(amt_elem.text) if amt_elem is not None and amt_elem.text else 0.0
-        currency = amt_elem.get('Ccy', 'USD') if amt_elem is not None else 'USD'
-        
-        tx_id = root.findtext('.//NtryDtls/TxDtls/Refs/TxId', default='TX_NONE')
-        end_to_end_id = root.findtext('.//NtryDtls/TxDtls/Refs/EndToEndId', default='')
-        remittance = root.findtext('.//NtryDtls/TxDtls/RmtInf/Ustrd', default='')
-        
-        # Compute deterministic cryptographic hash of raw XML for on-chain state Merkle audit
-        payload_hash = "0x" + hashlib.sha256(xml_content.encode('utf-8')).hexdigest()
+        ntfctn = root.find(".//Ntfctn")
+        if ntfctn is None:
+            raise ValueError("Invalid camt.054: Missing <Ntfctn> element.")
+
+        msg_id = root.findtext(".//GrpHdr/MsgId", default="UNKNOWN-MSG-ID")
+        ntry = ntfctn.find(".//Ntry")
+        if ntry is None:
+            raise ValueError("Invalid camt.054: Missing <Ntry> entry.")
+
+        amt_elem = ntry.find("./Amt")
+        amount = float(amt_elem.text) if amt_elem is not None else 0.0
+        currency = amt_elem.attrib.get("Ccy", "USD") if amt_elem is not None else "USD"
+
+        credit_debit = ntry.findtext("./CdtDbtInd", default="CRDT")
+        booking_date = ntry.findtext(".//BookgDt/Dt", default=datetime.utcnow().strftime("%Y-%m-%d"))
+        account_iban = ntfctn.findtext(".//Acct/Id/Othr/Id", default="UNKNOWN-ACCOUNT")
+
+        raw_hash = hashlib.sha256(xml_string.encode('utf-8')).hexdigest()
 
         return {
-            "message_type": "camt.054.001.08",
             "message_id": msg_id,
-            "escrow_account": escrow_acct,
-            "routing_number": bank_bic,
-            "amount_usd": amount_usd,
+            "account_identifier": account_iban,
+            "amount": amount,
             "currency": currency,
-            "transaction_id": tx_id,
-            "investor_ref": end_to_end_id,
-            "remittance_info": remittance,
-            "audit_merkle_hash": payload_hash,
-            "status": "VALIDATED_BY_CHARTER_BANK"
+            "direction": credit_debit,
+            "booking_date": booking_date,
+            "audit_merkle_hash": f"0x{raw_hash}",
+            "status": "SETTLED"
         }
 
     @staticmethod
-    def parse_nacha_ccd_plus_addenda(nacha_raw: str) -> Dict[str, Any]:
-        """Extracts KYC and SPV routing from NACHA Entry Detail Addenda Record (Type 705)."""
-        lines = nacha_raw.strip().split('\n')
-        parsed_entries = []
+    def generate_pain001_payment(debtor_bban: str, creditor_bban: str, amount_usd: float, end_to_end_id: str) -> str:
+        """Generates an outbound ISO 20022 pain.001.001.09 Credit Transfer Instruction."""
+        msg_id = f"UNYKORN-PAIN001-{int(datetime.utcnow().timestamp())}"
+        cre_dt = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
         
-        for line in lines:
-            if line.startswith('705'):
-                payment_info = line[3:].strip()
-                parsed_entries.append({
-                    "record_type": "705",
-                    "addenda_content": payment_info
-                })
-        return {"parsed_addenda_records": parsed_entries, "count": len(parsed_entries)}
+        xml_template = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.001.001.09">
+  <CstmrCdtTrfInitn>
+    <GrpHdr>
+      <MsgId>{msg_id}</MsgId>
+      <CreDtTm>{cre_dt}</CreDtTm>
+      <NbOfTxs>1</NbOfTxs>
+      <InitgPty>
+        <Nm>Unykorn Fiduciary Gateway LLC</Nm>
+      </InitgPty>
+    </GrpHdr>
+    <PmtInf>
+      <PmtInfId>PMT-INFO-{end_to_end_id}</PmtInfId>
+      <PmtMtd>TRF</PmtMtd>
+      <ReqdExctnDt>{datetime.utcnow().strftime("%Y-%m-%d")}</ReqdExctnDt>
+      <Dbtr>
+        <Nm>SPV Fiduciary Escrow Reserve</Nm>
+      </Dbtr>
+      <DbtrAcct>
+        <Id>
+          <Othr>
+            <Id>{debtor_bban}</Id>
+          </Othr>
+        </Id>
+      </DbtrAcct>
+      <DbtrAgt>
+        <FinInstnId>
+          <Nm>Charter Bank &amp; Trust, NA</Nm>
+        </FinInstnId>
+      </DbtrAgt>
+      <CdtTrfTxInf>
+        <PmtId>
+          <EndToEndId>{end_to_end_id}</EndToEndId>
+        </PmtId>
+        <Amt>
+          <InstdAmt Ccy="USD">{amount_usd:.2f}</InstdAmt>
+        </Amt>
+        <Cdtr>
+          <Nm>Institutional Debt/Equity Investor</Nm>
+        </Cdtr>
+        <CdtrAcct>
+          <Id>
+            <Othr>
+              <Id>{creditor_bban}</Id>
+            </Othr>
+          </Id>
+        </CdtrAcct>
+        <RmtInf>
+          <Ustrd>Quarterly Yield Distribution - SPV Clean Energy Debt Tranche A</Ustrd>
+        </RmtInf>
+      </CdtTrfTxInf>
+    </PmtInf>
+  </CstmrCdtTrfInitn>
+</Document>"""
+        return xml_template
