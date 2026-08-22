@@ -1,0 +1,15 @@
+[package]
+name = "unykorn-node"
+version = "0.1.0"
+edition = "2021"
+authors = ["Unykorn LLC <engineering@unykorn.com>"]
+
+[dependencies]
+unykorn-crypto = { path = "../unykorn-crypto" }
+unykorn-vm = { path = "../unykorn-vm" }
+unykorn-inference = { path = "../unykorn-inference" }
+tokio = { version = "1.36", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+hex = "0.4"
+thiserror = "1.0"

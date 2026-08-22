@@ -2,6 +2,7 @@
 members = [
     "crates/unykorn-crypto",
     "crates/unykorn-vm",
-    "crates/unykorn-inference"
+    "crates/unykorn-inference",
+    "crates/unykorn-node"
 ]
 resolver = "2"
