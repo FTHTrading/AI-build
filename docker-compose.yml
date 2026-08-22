@@ -1,0 +1,94 @@
+version: '3.8'
+
+services:
+  # -------------------------------------------------------------
+  # 1. DONK INTERACTIVE CHAT FRONTEND (Next.js 15)
+  # -------------------------------------------------------------
+  donk-chat-ui:
+    build:
+      context: ./donk-chat-ui
+      dockerfile: Dockerfile
+    container_name: unykorn-donk-ui
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:8790
+    depends_on:
+      - vault-api-server
+    networks:
+      - unykorn-net
+
+  # -------------------------------------------------------------
+  # 2. FASTAPI COMMAND & RAG GATEWAY
+  # -------------------------------------------------------------
+  vault-api-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.gateway
+    container_name: unykorn-vault-api
+    restart: unless-stopped
+    ports:
+      - "8790:8790"
+    volumes:
+      - C:\Unykorn-Brain:/app/Unykorn-Brain
+      - C:\Users\Kevan\scripts:/app/scripts
+    environment:
+      - UNYKORN_VAULT_PATH=/app/Unykorn-Brain
+      - RUST_CHAIN_IPC=http://unykorn-rust-node:8791
+      - OLLAMA_HOST=http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - unykorn-rust-node
+    networks:
+      - unykorn-net
+
+  # -------------------------------------------------------------
+  # 3. GENESIS402 (x402) A2A SETTLEMENT DAEMON
+  # -------------------------------------------------------------
+  genesis402-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.x402
+    container_name: unykorn-genesis402
+    restart: unless-stopped
+    ports:
+      - "4020:4020"
+    volumes:
+      - C:\Unykorn-Brain:/app/Unykorn-Brain
+    environment:
+      - UNYKORN_VAULT_PATH=/app/Unykorn-Brain
+      - RUST_CHAIN_IPC=http://unykorn-rust-node:8791
+    depends_on:
+      - unykorn-rust-node
+    networks:
+      - unykorn-net
+
+  # -------------------------------------------------------------
+  # 4. RUST LAYER-1 STATE & CONSENSUS NODE
+  # -------------------------------------------------------------
+  unykorn-rust-node:
+    build:
+      context: ./unykorn-core
+      dockerfile: Dockerfile
+    container_name: unykorn-rust-node
+    restart: unless-stopped
+    ports:
+      - "8791:8791"
+    volumes:
+      - unykorn-rocksdb-data:/app/data
+    environment:
+      - RUST_LOG=info
+      - DB_PATH=/app/data/.rocksdb_chain
+    networks:
+      - unykorn-net
+
+networks:
+  unykorn-net:
+    driver: bridge
+
+volumes:
+  unykorn-rocksdb-data:
+    driver: local
