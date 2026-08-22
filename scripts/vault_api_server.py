@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 Unykorn LLC - Clawd Command Server RAG & Transaction Logger Router (Port 8790)
-Exposes Obsidian Neural Vault RAG query endpoints and daily episodic transaction logging via FastAPI.
+Exposes Obsidian Neural Vault RAG query endpoints, daily episodic transaction logging,
+and IPC bridge relays to the autonomous Rust Layer-1 chain on port 8791.
 """
 
 from pathlib import Path
@@ -11,6 +12,7 @@ import os
 import sys
 import json
 import re
+import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -20,11 +22,12 @@ PORT = 8790
 HOST = "0.0.0.0"
 VAULT_DIR = Path(r"C:\Unykorn-Brain")
 DAILY_LOG_DIR = VAULT_DIR / "04_EPISODIC_MEMORY" / "DAILY_TRANSACTIONS"
+RUST_CHAIN_IPC_URL = "http://127.0.0.1:8791"
 
 app = FastAPI(
     title="Unykorn Clawd Command Server",
     description="Local RAG & Neuro-Context Gateway for Unykorn LLC",
-    version="2.0.0",
+    version="2.1.0",
 )
 
 app.add_middleware(
@@ -65,6 +68,21 @@ class ExecutionLogResponse(BaseModel):
     log_file: str
     timestamp: str
     message: str
+
+class TruthAttestationPayload(BaseModel):
+    category: str
+    claim_hash: str
+    confidence_score: int
+    evidence_uri: str
+    signature: str
+
+class SubmitTxPayload(BaseModel):
+    sender: str
+    receiver: str
+    payload: str
+    truth_proof: TruthAttestationPayload
+    nonce: int
+    signature: str
 
 
 def tokenize(text):
@@ -190,15 +208,6 @@ tags:
         with open(daily_file, "a", encoding="utf-8") as f:
             f.write(entry_block)
 
-        # Mirror log to Obsidian Vault
-        try:
-            obsidian_mirror = Path("C:/Users/Kevan/Obsidian-Vault/Unykorn-Brain/04_EPISODIC_MEMORY/DAILY_TRANSACTIONS") / f"{date_str}.md"
-            obsidian_mirror.parent.mkdir(parents=True, exist_ok=True)
-            with open(obsidian_mirror, "a", encoding="utf-8") as f:
-                f.write(entry_block)
-        except Exception:
-            pass
-
         return ExecutionLogResponse(
             success=True,
             log_file=str(daily_file),
@@ -209,6 +218,34 @@ tags:
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to append vault log: {str(e)}"
+        )
+
+# ----------------- IPC CHAIN RELAY ROUTES -----------------
+@app.get("/v1/chain/status")
+def get_chain_lifeline_status():
+    """Queries the autonomous Rust chain state machine via internal IPC."""
+    try:
+        res = requests.get(f"{RUST_CHAIN_IPC_URL}/ipc/status", timeout=2)
+        res.raise_for_status()
+        return res.json()
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Rust Neural Chain node offline or unreachable: {str(e)}",
+        )
+
+@app.post("/v1/chain/submit-tx")
+def submit_chain_transaction(payload: SubmitTxPayload):
+    """Submits a verified transaction payload to the Rust node mempool."""
+    try:
+        res = requests.post(
+            f"{RUST_CHAIN_IPC_URL}/ipc/tx", json=payload.model_dump(), timeout=3
+        )
+        res.raise_for_status()
+        return res.json()
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(
+            status_code=400, detail=f"Chain transaction submission error: {str(e)}"
         )
 
 if __name__ == "__main__":

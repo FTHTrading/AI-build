@@ -1,15 +1,23 @@
+mod storage;
+
+use axum::{
+    extract::State,
+    http::StatusCode,
+    response::IntoResponse,
+    routing::{get, post},
+    Json, Router,
+};
 use chrono::Utc;
 use ed25519_dalek::{Signer, SigningKey, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
+use std::net::SocketAddr;
 use std::sync::Arc;
+use storage::ChainDb;
 use thiserror::Error;
 use tokio::sync::RwLock;
-
-// ==========================================
-// 1. ERROR TYPES & STATE ENUMS
-// ==========================================
+use tower_http::cors::CorsLayer;
 
 #[derive(Error, Debug)]
 pub enum ChainError {
@@ -17,10 +25,10 @@ pub enum ChainError {
     InvalidTruthProof(String),
     #[error("Invalid State Transition: From {0:?} to {1:?}")]
     InvalidStateTransition(LifelineState, LifelineState),
-    #[error("Cryptographic Verification Failed")]
-    CryptoError,
     #[error("Zero Balance or Insufficient Permissions")]
     ExecutionDenied,
+    #[error("Storage Failure: {0}")]
+    StorageError(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -40,15 +48,11 @@ pub enum TruthCategory {
     StateCommitment,
 }
 
-// ==========================================
-// 2. CRYPTOGRAPHIC DATA STRUCTURES
-// ==========================================
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TruthAttestation {
     pub category: TruthCategory,
     pub claim_hash: String,
-    pub confidence_score: u8, // 0 - 100 (Threshold >= 95 for auto-commit)
+    pub confidence_score: u8,
     pub evidence_uri: String,
     pub signature: String,
 }
@@ -93,10 +97,6 @@ impl Block {
     }
 }
 
-// ==========================================
-// 3. AUTONOMOUS STATE MACHINE & LEDGER
-// ==========================================
-
 pub struct UnykornChainState {
     pub lifeline_state: LifelineState,
     pub block_height: u64,
@@ -105,33 +105,44 @@ pub struct UnykornChainState {
     pub pending_mempool: Vec<Transaction>,
     signing_key: SigningKey,
     pub verifying_key: VerifyingKey,
+    pub db: ChainDb,
 }
 
 impl UnykornChainState {
-    pub fn new() -> Self {
+    pub fn new(db_path: &str) -> Result<Self, ChainError> {
         let mut rng = rand::thread_rng();
         let signing_key = SigningKey::generate(&mut rng);
         let verifying_key = signing_key.verifying_key();
+        let db = ChainDb::open(db_path)?;
 
-        let genesis_block = Block {
-            index: 0,
-            timestamp: Utc::now().timestamp(),
-            previous_hash: "0000000000000000000000000000000000000000000000000000000000000000".to_string(),
-            transactions: vec![],
-            state_root: "GENESIS_ROOT_UNYKORN_LLC".to_string(),
-            block_hash: "0000000000000000000000000000000000000000000000000000000000000000".to_string(),
-            validator_signature: "GENESIS_SIG".to_string(),
+        let loaded_chain = db.load_full_chain()?;
+        let (chain, height) = if loaded_chain.is_empty() {
+            let genesis_block = Block {
+                index: 0,
+                timestamp: Utc::now().timestamp(),
+                previous_hash: "0000000000000000000000000000000000000000000000000000000000000000".to_string(),
+                transactions: vec![],
+                state_root: "GENESIS_ROOT_UNYKORN_LLC".to_string(),
+                block_hash: "0000000000000000000000000000000000000000000000000000000000000000".to_string(),
+                validator_signature: "GENESIS_SIG".to_string(),
+            };
+            db.put_block(&genesis_block)?;
+            (vec![genesis_block], 0)
+        } else {
+            let top_height = loaded_chain.last().unwrap().index;
+            (loaded_chain, top_height)
         };
 
-        Self {
+        Ok(Self {
             lifeline_state: LifelineState::Genesis,
-            block_height: 0,
+            block_height: height,
             state_registry: HashMap::new(),
-            chain: vec![genesis_block],
+            chain,
             pending_mempool: vec![],
             signing_key,
             verifying_key,
-        }
+            db,
+        })
     }
 
     pub fn transition_lifeline(&mut self, target: LifelineState) -> Result<(), ChainError> {
@@ -162,7 +173,6 @@ impl UnykornChainState {
             return Err(ChainError::ExecutionDenied);
         }
 
-        // Truth validation check: Must score >= 95 confidence
         if tx.truth_proof.confidence_score < 95 {
             return Err(ChainError::InvalidTruthProof(format!(
                 "Confidence score {} is below mandatory threshold 95",
@@ -183,12 +193,11 @@ impl UnykornChainState {
         let current_index = previous_block.index + 1;
         let current_timestamp = Utc::now().timestamp();
 
-        // Apply transactions to state machine
         for tx in &self.pending_mempool {
             self.state_registry.insert(tx.sender.clone(), tx.payload.clone());
+            self.db.put_state_entry(&tx.sender, &tx.payload)?;
         }
 
-        // Calculate dynamic State Root
         let mut hasher = Sha256::new();
         for (k, v) in &self.state_registry {
             hasher.update(k.as_bytes());
@@ -204,7 +213,6 @@ impl UnykornChainState {
             &state_root,
         );
 
-        // Sign block with autonomous AI key
         let signature = self.signing_key.sign(block_hash.as_bytes());
         let signature_hex = hex::encode(signature.to_bytes());
 
@@ -218,11 +226,12 @@ impl UnykornChainState {
             validator_signature: signature_hex,
         };
 
+        self.db.put_block(&new_block)?;
         self.chain.push(new_block.clone());
         self.block_height = current_index;
 
         tracing::info!(
-            "[+] Block #{} Produced & Finalized | Hash: {} | State Root: {}",
+            "[+] Block #{} Produced & Persisted | Hash: {} | State Root: {}",
             new_block.index,
             &new_block.block_hash[0..16],
             &new_block.state_root[0..16]
@@ -232,49 +241,85 @@ impl UnykornChainState {
     }
 }
 
-// ==========================================
-// 4. AUTONOMOUS RUNTIME LIFELINE LOOP
-// ==========================================
+// --- IPC API SCHEMAS ---
+#[derive(Serialize)]
+struct ChainStatusResponse {
+    lifeline_state: LifelineState,
+    block_height: u64,
+    mempool_size: usize,
+    latest_state_root: String,
+}
+
+#[derive(Serialize)]
+struct GenericResponse {
+    success: bool,
+    message: String,
+}
+
+// --- IPC ROUTE HANDLERS ---
+async fn get_status(State(engine): State<Arc<RwLock<UnykornChainState>>>) -> impl IntoResponse {
+    let state = engine.read().await;
+    let latest_root = state.chain.last().map(|b| b.state_root.clone()).unwrap_or_default();
+    
+    Json(ChainStatusResponse {
+        lifeline_state: state.lifeline_state,
+        block_height: state.block_height,
+        mempool_size: state.pending_mempool.len(),
+        latest_state_root: latest_root,
+    })
+}
+
+async fn post_transaction(
+    State(engine): State<Arc<RwLock<UnykornChainState>>>,
+    Json(tx): Json<Transaction>,
+) -> impl IntoResponse {
+    let mut state = engine.write().await;
+    match state.submit_transaction(tx) {
+        Ok(_) => (
+            StatusCode::OK,
+            Json(GenericResponse {
+                success: true,
+                message: "Transaction accepted into mempool".to_string(),
+            }),
+        ),
+        Err(e) => (
+            StatusCode::BAD_REQUEST,
+            Json(GenericResponse {
+                success: false,
+                message: format!("Submission rejected: {e}"),
+            }),
+        ),
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
-    tracing::info!("=== UNYKORN AUTONOMOUS NEURAL CHAIN RUNTIME ===");
+    tracing::info!("=== UNYKORN AUTONOMOUS NEURAL CHAIN (IPC PORT 8791) ===");
 
-    let chain_engine = Arc::new(RwLock::new(UnykornChainState::new()));
+    let db_path = r"C:\Unykorn-Brain\.rocksdb_chain";
+    let chain_engine = Arc::new(RwLock::new(UnykornChainState::new(db_path)?));
 
-    // 1. Bootstrapping Lifeline
     {
         let mut engine = chain_engine.write().await;
         engine.transition_lifeline(LifelineState::Bootstrapping)?;
         engine.transition_lifeline(LifelineState::AutonomousActive)?;
     }
 
-    // 2. Simulate Ingestion of High-Confidence Truth Attestation
-    let dummy_tx = Transaction {
-        sender: "0xUNYKORN_TREASURY_GATEWAY".to_string(),
-        receiver: "0xSPV_SENIOR_DEBT_FACILITY_1".to_string(),
-        payload: "SET_AUC_VALUE=$4,820,000,000; VERIFIED_ASSETS=155".to_string(),
-        truth_proof: TruthAttestation {
-            category: TruthCategory::RwaAssetAttestation,
-            claim_hash: "0x98f234abcd09123847aefbcde09812".to_string(),
-            confidence_score: 99,
-            evidence_uri: "obsidian://03_ASSET_REGISTRIES/SPV_STRUCTURES.md".to_string(),
-            signature: "0xAI_SIGNATURE_PROOF".to_string(),
-        },
-        nonce: 1,
-        signature: "0xTX_SIGNATURE".to_string(),
-    };
+    // Attach Axum IPC server on port 8791
+    let app = Router::new()
+        .route("/ipc/status", get(get_status))
+        .route("/ipc/tx", post(post_transaction))
+        .layer(CorsLayer::permissive())
+        .with_state(Arc::clone(&chain_engine));
 
-    // 3. Ingest & Arbitrate Block Production
-    {
-        let mut engine = chain_engine.write().await;
-        engine.submit_transaction(dummy_tx)?;
-        let block = engine.produce_block()?;
-        tracing::info!("[*] Block Transactions: {:?}", block.transactions.len());
-    }
+    let addr = SocketAddr::from(([127, 0, 0, 1], 8791));
+    tokio::spawn(async move {
+        let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+        tracing::info!("[+] Embedded IPC Server listening on http://{}", addr);
+        axum::serve(listener, app).await.unwrap();
+    });
 
-    // 4. Background Autonomous Heartbeat Loop
     let engine_clone = Arc::clone(&chain_engine);
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
@@ -284,14 +329,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if engine.lifeline_state == LifelineState::AutonomousActive {
                 if !engine.pending_mempool.is_empty() {
                     let _ = engine.produce_block();
-                } else {
-                    tracing::debug!("[Heartbeat] Lifeline: Active | Block Height: {}", engine.block_height);
                 }
             }
         }
     });
 
-    // Keep active
     tokio::time::sleep(tokio::time::Duration::from_secs(6)).await;
     tracing::info!("[+] Unykorn Neural Chain state machine online and autonomous.");
 
