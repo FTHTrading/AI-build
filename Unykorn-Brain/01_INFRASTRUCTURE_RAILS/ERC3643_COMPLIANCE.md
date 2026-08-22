@@ -1,0 +1,4 @@
+# ERC-3643 PERMISSIONED COMPLIANCE SPECIFICATION
+
+- Standards: ERC-3643 (T-REX), ERC-1400.
+- Hooks: canTransfer, isVerified.
