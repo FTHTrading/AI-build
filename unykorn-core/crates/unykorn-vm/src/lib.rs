@@ -65,11 +65,15 @@ impl WorldState {
         let mut state_bytes = Vec::new();
         for (addr, acc) in &self.accounts {
             state_bytes.extend_from_slice(addr);
-            state_bytes.extend_from_slice(&acc.try_to_vec().unwrap_or_default());
+            if let Ok(bytes) = borsh::to_vec(acc) {
+                state_bytes.extend_from_slice(&bytes);
+            }
         }
         for (spv, record) in &self.rwa_registry {
             state_bytes.extend_from_slice(spv);
-            state_bytes.extend_from_slice(&record.try_to_vec().unwrap_or_default());
+            if let Ok(bytes) = borsh::to_vec(record) {
+                state_bytes.extend_from_slice(&bytes);
+            }
         }
         keccak256(&state_bytes)
     }

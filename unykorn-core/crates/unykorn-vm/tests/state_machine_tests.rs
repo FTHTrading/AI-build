@@ -35,15 +35,14 @@ fn test_borsh_transaction_serialization_roundtrip() {
     };
 
     // Serialize to binary wire format
-    let serialized_bytes = original_tx
-        .try_to_vec()
+    let serialized_bytes = borsh::to_vec(&original_tx)
         .expect("Borsh serialization must not fail");
 
     // Assert non-empty and deterministic size
     assert!(!serialized_bytes.is_empty());
 
     // Deserialize back to struct
-    let deserialized_tx = Transaction::try_from_slice(&serialized_bytes)
+    let deserialized_tx: Transaction = borsh::from_slice(&serialized_bytes)
         .expect("Borsh deserialization must succeed");
 
     assert_eq!(original_tx.sender, deserialized_tx.sender);
