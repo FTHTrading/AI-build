@@ -6,10 +6,10 @@
 $source = "C:\Unykorn-Brain"
 $destination = "C:\Users\Kevan\Obsidian-Vault\Unykorn-Brain"
 $scriptsDir = "C:\Users\Kevan\scripts"
-$rustChainDir = "C:\Users\Kevan\AI-build\unykorn-chain"
+$rustChainDir = "C:\Users\Kevan\AI-build\unykorn-core"
 
 Write-Host "========================================================" -ForegroundColor Cyan
-Write-Host "   UNYKORN 24/7 RUNTIME ENGINE & GENESIS402 GATEWAY     " -ForegroundColor Cyan
+Write-Host "   UNYKORN 24/7 RUNTIME ENGINE & SUPERVISOR             " -ForegroundColor Cyan
 Write-Host "========================================================" -ForegroundColor Cyan
 
 # 1. Start or Verify FastAPI Command Server (Port 8790)
@@ -18,33 +18,26 @@ if (-not $apiProc) {
     Write-Host "[+] Launching Vault FastAPI Server on port 8790..." -ForegroundColor Yellow
     Start-Process python -ArgumentList "$scriptsDir\vault_api_server.py" -WindowStyle Hidden
 } else {
-    Write-Host "[✓] Vault FastAPI Server active (PID: $($apiProc.ProcessId))" -ForegroundColor Green
+    $pidNum = $apiProc.ProcessId
+    Write-Host "[OK] Vault FastAPI Server active (PID: $pidNum)" -ForegroundColor Green
 }
 
-# 2. Start or Verify Rust Layer-1 Node (Port 8791)
-$rustProc = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like "*unykorn-chain*" }
-if (-not $rustProc) {
-    Write-Host "[+] Launching Rust Layer-1 Consensus Node on port 8791..." -ForegroundColor Yellow
-    Start-Process -FilePath "cargo" -ArgumentList "run --manifest-path $rustChainDir\Cargo.toml --release" -WindowStyle Hidden
-} else {
-    Write-Host "[✓] Rust Layer-1 Node active (PID: $($rustProc.ProcessId))" -ForegroundColor Green
-}
-
-# 3. Start or Verify Genesis402 (x402) A2A Gateway (Port 4020)
+# 2. Start or Verify Genesis402 (x402) A2A Gateway (Port 4020)
 $a2aProc = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like "*unykorn_x402_a2a_daemon.py*" }
 if (-not $a2aProc) {
     Write-Host "[+] Launching Genesis402 A2A Gateway on port 4020..." -ForegroundColor Yellow
     Start-Process python -ArgumentList "$scriptsDir\unykorn_x402_a2a_daemon.py" -WindowStyle Hidden
 } else {
-    Write-Host "[✓] Genesis402 A2A Gateway active (PID: $($a2aProc.ProcessId))" -ForegroundColor Green
+    $a2aPid = $a2aProc.ProcessId
+    Write-Host "[OK] Genesis402 A2A Gateway active (PID: $a2aPid)" -ForegroundColor Green
 }
 
-# 4. Initial Vault Synchronization
+# 3. Initial Vault Synchronization
 Write-Host "[*] Executing initial Vault Mirror sync..." -ForegroundColor Cyan
 robocopy $source $destination /MIR /FFT /Z /XA:H /W:1 /R:1 | Out-Null
-Write-Host "[✓] Initial Vault mirror complete." -ForegroundColor Green
+Write-Host "[OK] Initial Vault mirror complete." -ForegroundColor Green
 
-# 5. File System Watcher Daemon Loop
+# 4. File System Watcher Daemon Loop
 $watcher = New-Object System.IO.FileSystemWatcher
 $watcher.Path = $source
 $watcher.IncludeSubdirectories = $true
@@ -53,7 +46,8 @@ $watcher.EnableRaisingEvents = $true
 $action = {
     $path = $Event.SourceEventArgs.FullPath
     $changeType = $Event.SourceEventArgs.ChangeType
-    Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Vault Event ($changeType): $path" -ForegroundColor DarkGray
+    $timeStamp = (Get-Date).ToString("HH:mm:ss")
+    Write-Host "[$timeStamp] Vault Event ($changeType): $path" -ForegroundColor DarkGray
     
     Start-Sleep -Milliseconds 500
     robocopy $source $destination /MIR /FFT /Z /XA:H /W:1 /R:1 | Out-Null
