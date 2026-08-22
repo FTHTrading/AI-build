@@ -9,7 +9,7 @@ import time
 import os
 import requests
 import xml.etree.ElementTree as ET
-from typing import AsyncGenerator, Dict, Any
+from typing import AsyncGenerator, Dict, Any, Optional
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,9 +19,15 @@ import edge_tts
 
 from scripts.iso20022_parser import Iso20022Engine
 from scripts.bitgo_gateway import BitGoExpressClient
+from scripts.sovereign_oracle import SovereignAssetOracle
 
-app = FastAPI(title="Unykorn Enterprise Gateway & Custody Bridge")
+app = FastAPI(
+    title="Unykorn Sovereign Asset Gateway & Multi-Asset Oracle",
+    version="2.1.0",
+    docs_url="/docs"
+)
 
+oracle = SovereignAssetOracle(enterprise_id="69a0b54edd793f289161ec0c50cee070")
 bitgo_client = BitGoExpressClient()
 
 app.state.escrow_balance_usd = 50000000.00
@@ -44,85 +50,65 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
+# ----------------------------------------------------------------------
+# Health, Telemetry & Versioning
+# ----------------------------------------------------------------------
 @app.get("/")
 @app.get("/health")
 async def health_check():
     return {
         "status": "ONLINE",
-        "service": "unykorn-bitgo-banking-gateway",
-        "custody_anchor": "BitGo Bank & Trust / Charter Bank",
+        "version": "2.1.0-sovereign",
+        "service": "unykorn-sovereign-rwa-gateway",
+        "custody_anchors": ["BitGo Enterprise Trust", "Charter Bank & Trust"],
         "enterprise_id": app.state.enterprise_id,
-        "compliance_standard": "ERC-3643 (T-REX)",
+        "oracle_status": "ACTIVE_SIGNING",
+        "compliance_engine": "ERC-3643 (T-REX Modular)",
         "escrow_verified_usd": app.state.escrow_balance_usd
     }
 
-# ----------------------------------------------------------------------
-# DIGNITY GOLD (DIGau) ATTESTATION & RESERVE TELEMETRY
-# ----------------------------------------------------------------------
-@app.get("/v1/custody/dignity-gold/attestation")
-async def get_dignity_gold_attestation():
+@app.get("/version")
+async def get_version():
     return {
-        "suite": "DIGau_ERC3643_Production",
-        "status": "ATTESTED",
-        "timestamp": int(time.time()),
-        "bitgo_enterprise_id": app.state.enterprise_id,
-        "vault_ref": "BITGO-GOLD-VAULT-DIGAU-01",
-        "onchain_total_supply": 10000000,
-        "custody_ounces_allocated": 10000.0,
-        "certified_reserve_ceiling_oz": 25000.0,
-        "reserve_backing_ratio": "1.00x",
-        "assay_merkle_root": "0x5e5fc46e77f1e1cb92563483c56cf3c19663ccb0387b360794d6f524132ef03b",
-        "compliance_rules": [
-            "ONCHAINID_10101_KYC",
-            "ONCHAINID_10102_AML",
-            "REG_D_LOCKUP",
-            "SANCTION_FILTER"
-        ]
+        "version": "2.1.0",
+        "release_codename": "Sovereign-Oracle-Hardened",
+        "supported_standards": ["ERC-3643", "EIP-712", "ISO-20022", "ONCHAINID"],
+        "active_networks": ["Rust-L1:8791", "EVM:1337"]
     }
 
 # ----------------------------------------------------------------------
-# BitGo Direct Vault Scanner
+# Dynamic Multi-Asset Custody Oracle Routes
 # ----------------------------------------------------------------------
-@app.get("/v1/custody/list-vaults")
-async def list_bitgo_vaults():
-    token = os.environ.get("BITGO_ACCESS_TOKEN", "")
-    headers = {"Content-Type": "application/json"}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-
+@app.get("/v1/custody/{asset}/attestation")
+async def get_asset_attestation(asset: str):
     try:
-        ent_url = f"https://app.bitgo.com/api/v2/enterprise/{app.state.enterprise_id}"
-        ent_resp = requests.get(ent_url, headers=headers, timeout=10)
-        wallets_url = f"https://app.bitgo.com/api/v2/wallets?enterprise={app.state.enterprise_id}"
-        wallets_resp = requests.get(wallets_url, headers=headers, timeout=10)
-        
-        return {
-            "enterprise_id": app.state.enterprise_id,
-            "enterprise_status": ent_resp.status_code,
-            "enterprise_data": ent_resp.json() if ent_resp.status_code == 200 else {"error": ent_resp.text},
-            "wallets_status": wallets_resp.status_code,
-            "wallets_data": wallets_resp.json() if wallets_resp.status_code == 200 else {"error": wallets_resp.text}
-        }
-    except Exception as e:
-        return {
-            "enterprise_id": app.state.enterprise_id,
-            "status": "LOCAL_FALLBACK",
-            "message": str(e),
-            "active_vaults": [
-                {
-                    "label": "Dignity Gold Physical Trust Vault",
-                    "id": "BITGO-GOLD-VAULT-DIGAU-01",
-                    "coin": "gteth",
-                    "balanceString": "10000000000000000000000000"
-                }
-            ]
-        }
+        envelope = oracle.generate_attestation_envelope(asset)
+        return envelope
+    except KeyError:
+        raise HTTPException(
+            status_code=404, 
+            detail=f"Asset '{asset}' not found. Supported assets: {list(oracle.asset_registry.keys())}"
+        )
+
+@app.get("/v1/custody/{asset}/audit-history")
+async def get_asset_audit_history(asset: str):
+    history = oracle.get_audit_history(asset)
+    return {
+        "asset": asset,
+        "audit_entries_count": len(history),
+        "audit_chain": history
+    }
+
+# Legacy route compatibility
+@app.get("/v1/custody/dignity-gold/attestation")
+async def get_legacy_dignity_gold_attestation():
+    return oracle.generate_attestation_envelope("dignity-gold")
 
 # ----------------------------------------------------------------------
-# BitGo Settlement & Mint Execution
+# BitGo Settlement & EIP-712 Signer
 # ----------------------------------------------------------------------
 class BitGoSettlementRequest(BaseModel):
-    spv_id: str = "SPV_CLEAN_ENERGY_01"
+    spv_id: str = "spv-clean-energy"
     amount_usd: float = 25000000.00
     investor_wallet: str = "0x7A8B9C1029384756A1B2C3D4E5F6A7B8C9D0E1F2"
     wire_ref: str = "BITGO-TRUST-SETTLE-88219"
@@ -210,7 +196,6 @@ async def escrow_reconciliation():
         "charter_bank_escrow_usd": app.state.escrow_balance_usd,
         "rust_l1_attested_usd": app.state.escrow_balance_usd,
         "discrepancy_usd": 0.00,
-        "last_reconciliation_time": "2026-08-22T10:00:00Z",
         "settlement_rail": "BitGo Enterprise & Fedwire pacs.008",
         "fiduciary_institution": "BitGo Bank & Trust / Charter Bank"
     }
@@ -231,9 +216,6 @@ async def text_to_speech(payload: TTSRequest):
             audio_data.extend(chunk["data"])
     return Response(content=bytes(audio_data), media_type="audio/mpeg")
 
-# ----------------------------------------------------------------------
-# Server Entrypoint (MUST BE AT VERY BOTTOM)
-# ----------------------------------------------------------------------
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8790)
