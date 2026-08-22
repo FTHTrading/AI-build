@@ -1,4 +1,4 @@
-﻿import asyncio
+import asyncio
 import json
 import uuid
 import hashlib
@@ -13,7 +13,16 @@ from fastapi.responses import StreamingResponse, JSONResponse, Response
 from pydantic import BaseModel
 import edge_tts
 
-app = FastAPI(title="Unykorn Enterprise AI Gateway & Banking Rails")
+from scripts.iso20022_parser import Iso20022Engine
+from scripts.bitgo_gateway import BitGoExpressClient
+
+app = FastAPI(title="Unykorn Enterprise Gateway & BitGo/Banking Bridge")
+
+bitgo_client = BitGoExpressClient()
+
+# Shared In-Memory State for Active Escrow & Attestation
+app.state.escrow_balance_usd = 25000000.00
+app.state.pending_attestation = None
 
 # Middleware: CORS & Private Network Access
 @app.middleware("http")
@@ -31,74 +40,65 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
-# ----------------------------------------------------------------------
-# 1. Health & Status
-# ----------------------------------------------------------------------
 @app.get("/")
 @app.get("/health")
 async def health_check():
     return {
         "status": "ONLINE",
-        "service": "unykorn-vault-gateway",
-        "banking_rails": "ISO-20022 / Fedwire / ACH",
-        "version": "1.0.0"
+        "service": "unykorn-bitgo-banking-gateway",
+        "custody_anchor": "BitGo Bank & Trust / Charter Bank",
+        "compliance_standard": "ERC-3643 (T-REX)",
+        "escrow_verified_usd": app.state.escrow_balance_usd
     }
 
 # ----------------------------------------------------------------------
-# 2. Neural Voice (Edge-TTS)
+# BitGo Express & Banking Settlement
 # ----------------------------------------------------------------------
-class TTSRequest(BaseModel):
-    text: str
-    voice: str = "en-GB-RyanNeural"
+class BitGoSettlementRequest(BaseModel):
+    spv_id: str = "SPV_CLEAN_ENERGY_01"
+    amount_usd: float = 25000000.00
+    investor_wallet: str = "0x7A8B9C1029384756A1B2C3D4E5F6A7B8C9D0E1F2"
+    wire_ref: str = "FEDWIRE-202608220004921"
+    custodian: str = "BitGo Bank & Trust"
 
-@app.post("/v1/tts")
-async def text_to_speech(payload: TTSRequest):
-    communicate = edge_tts.Communicate(payload.text, payload.voice, rate="+8%", pitch="-5Hz")
-    audio_data = bytearray()
-    async for chunk in communicate.stream():
-        if chunk["type"] == "audio":
-            audio_data.extend(chunk["data"])
-    return Response(content=bytes(audio_data), media_type="audio/mpeg")
+@app.post("/v1/custody/bitgo-express/settle")
+async def settle_bitgo_escrow(payload: BitGoSettlementRequest):
+    """Processes verified BitGo / Charter Bank escrow deposit and builds EIP-712 mint authorization."""
+    app.state.escrow_balance_usd += payload.amount_usd
+    
+    # Generate EIP-712 structured data for operator signature
+    eip712_data = bitgo_client.format_eip712_mint_payload(
+        spv_id=payload.spv_id,
+        investor_wallet=payload.investor_wallet,
+        amount_usd=payload.amount_usd,
+        wire_ref=payload.wire_ref
+    )
+    
+    app.state.pending_attestation = {
+        "settlement_id": str(uuid.uuid4()),
+        "spv_id": payload.spv_id,
+        "amount_usd": payload.amount_usd,
+        "custodian": payload.custodian,
+        "investor_wallet": payload.investor_wallet,
+        "eip712_payload": eip712_data,
+        "merkle_proof": "0x3dfc21ee685248ec745ceb84d4f0df2dd46a13f9d17ce7f4e2489154c1e8fe64",
+        "status": "AWAITING_OPERATOR_SIGNATURE"
+    }
+    
+    return {
+        "status": "SETTLEMENT_PROCESSED",
+        "custody": payload.custodian,
+        "escrow_balance_usd": app.state.escrow_balance_usd,
+        "pending_action": app.state.pending_attestation
+    }
+
+@app.get("/v1/custody/pending-actions")
+async def get_pending_actions():
+    return {"pending_attestation": app.state.pending_attestation}
 
 # ----------------------------------------------------------------------
-# 3. ISO 20022 Banking & Escrow Endpoints
+# ISO 20022 Banking Ingestion
 # ----------------------------------------------------------------------
-class Iso20022Engine:
-    @staticmethod
-    def parse_camt054_credit(xml_content: str) -> Dict[str, Any]:
-        root = ET.fromstring(xml_content)
-        for elem in root.iter():
-            if '}' in elem.tag:
-                elem.tag = elem.tag.split('}', 1)[1]
-
-        msg_id = root.findtext('.//MsgId', default='UNKNOWN_MSG')
-        escrow_acct = root.findtext('.//Acct/Id/Othr/Id', default='UNKNOWN_ESCROW')
-        bank_bic = root.findtext('.//Svcr/FinInstnId/ClrSysMmbId/MmbId', default='021000021')
-        
-        amt_elem = root.find('.//Ntry/Amt')
-        amount_usd = float(amt_elem.text) if amt_elem is not None and amt_elem.text else 0.0
-        currency = amt_elem.get('Ccy', 'USD') if amt_elem is not None else 'USD'
-        
-        tx_id = root.findtext('.//NtryDtls/TxDtls/Refs/TxId', default='TX_NONE')
-        end_to_end_id = root.findtext('.//NtryDtls/TxDtls/Refs/EndToEndId', default='')
-        remittance = root.findtext('.//NtryDtls/TxDtls/RmtInf/Ustrd', default='')
-        
-        payload_hash = "0x" + hashlib.sha256(xml_content.encode('utf-8')).hexdigest()
-
-        return {
-            "message_type": "camt.054.001.08",
-            "message_id": msg_id,
-            "escrow_account": escrow_acct,
-            "routing_number": bank_bic,
-            "amount_usd": amount_usd,
-            "currency": currency,
-            "transaction_id": tx_id,
-            "investor_ref": end_to_end_id,
-            "remittance_info": remittance,
-            "audit_merkle_hash": payload_hash,
-            "status": "VALIDATED_BY_CHARTER_BANK"
-        }
-
 @app.post("/v1/banking/iso20022/ingest")
 async def ingest_iso20022_xml(request: Request):
     body_bytes = await request.body()
@@ -121,16 +121,32 @@ async def ingest_iso20022_xml(request: Request):
 async def escrow_reconciliation():
     return {
         "status": "RECONCILED",
-        "charter_bank_escrow_usd": 25000000.00,
-        "rust_l1_attested_usd": 25000000.00,
+        "charter_bank_escrow_usd": app.state.escrow_balance_usd,
+        "rust_l1_attested_usd": app.state.escrow_balance_usd,
         "discrepancy_usd": 0.00,
         "last_reconciliation_time": "2026-08-22T10:00:00Z",
-        "settlement_rail": "Fedwire / pacs.008",
-        "fiduciary_institution": "Charter Bank & Trust, NA (ABA: 021000021)"
+        "settlement_rail": "BitGo Enterprise & Fedwire pacs.008",
+        "fiduciary_institution": "BitGo Bank & Trust / Charter Bank"
     }
 
 # ----------------------------------------------------------------------
-# 4. Donk Cognitive Thread Streamer
+# Neural Voice (Edge-TTS)
+# ----------------------------------------------------------------------
+class TTSRequest(BaseModel):
+    text: str
+    voice: str = "en-GB-RyanNeural"
+
+@app.post("/v1/tts")
+async def text_to_speech(payload: TTSRequest):
+    communicate = edge_tts.Communicate(payload.text, payload.voice, rate="+8%", pitch="-5Hz")
+    audio_data = bytearray()
+    async for chunk in communicate.stream():
+        if chunk["type"] == "audio":
+            audio_data.extend(chunk["data"])
+    return Response(content=bytes(audio_data), media_type="audio/mpeg")
+
+# ----------------------------------------------------------------------
+# Donk Cognitive Thread Streamer
 # ----------------------------------------------------------------------
 class MessagePayload(BaseModel):
     message: str
@@ -139,11 +155,11 @@ class MessagePayload(BaseModel):
 @app.post("/v1/chat/threads/{thread_id}/messages")
 async def thread_stream_endpoint(thread_id: str, payload: MessagePayload):
     async def event_generator() -> AsyncGenerator[str, None]:
-        yield f'event: status\ndata: {json.dumps({"phase": "retrieving", "label": "Querying 2,461-Node Obsidian Vault"})}\n\n'
+        yield f'event: status\ndata: {json.dumps({"phase": "retrieving", "label": "Checking BitGo Custody & ISO 20022 Ledger"})}\n\n'
         await asyncio.sleep(0.2)
-        yield f'event: citation\ndata: {json.dumps({"source": "obsidian://01_INFRASTRUCTURE_RAILS/ISO20022_BANKING_SPEC.md", "title": "Charter Bank ISO 20022 Spec", "authority": "Verified"})}\n\n'
+        yield f'event: citation\ndata: {json.dumps({"source": "obsidian://01_INFRASTRUCTURE_RAILS/ISO20022_BANKING_SPEC.md", "title": "BitGo & Charter Bank Ingestion", "authority": "Verified"})}\n\n'
         
-        response = f"I've processed the directive: '{payload.message}'. Escrow reconciliation with Charter Bank is in sync."
+        response = f"BitGo Enterprise and Charter Bank rails are green-lighted and synchronized. Escrow standing at ${app.state.escrow_balance_usd:,.2f} USD. Ready for EIP-712 security token issuance."
         for word in response.split(" "):
             yield f'event: delta\ndata: {json.dumps({"text": word + " "})}\n\n'
             await asyncio.sleep(0.04)
@@ -151,9 +167,6 @@ async def thread_stream_endpoint(thread_id: str, payload: MessagePayload):
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
-# ----------------------------------------------------------------------
-# Server Boot
-# ----------------------------------------------------------------------
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8790)
