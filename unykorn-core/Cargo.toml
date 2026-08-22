@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "crates/unykorn-crypto",
+    "crates/unykorn-vm",
+    "crates/unykorn-inference"
+]
+resolver = "2"
