@@ -4,11 +4,14 @@ WORKDIR /app
 # Copy package manifests
 COPY package*.json ./
 
-# Install dependencies reliably
+# Install dependencies
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 # Copy application source
 COPY . .
+
+# Ensure a public directory exists so the multi-stage copy succeeds
+RUN mkdir -p public
 
 # Build Next.js application
 ENV NEXT_TELEMETRY_DISABLED=1
