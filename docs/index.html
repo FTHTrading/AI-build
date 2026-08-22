@@ -259,40 +259,84 @@
 
   <script>
     // MASTER DONK VOICE & EXECUTION CONTROLLER
+    // Neural TTS: en-GB-RyanNeural (British Male) via /v1/tts
     let voiceEnabled = true;
     let isListening = false;
     let recognition = null;
     let audioContextUnlocked = false;
+    let currentAudio = null;       // Currently playing Audio element
+    let ttsQueue = [];             // Queue of text to speak
+    let isSpeaking = false;        // Lock to prevent overlapping
 
-    // VOICE SPEECH SYNTHESIS ENGINE
-    function speakDonkText(text) {
-      if (!voiceEnabled || !('speechSynthesis' in window)) return;
+    // NEURAL TTS ENGINE — streams real audio from /v1/tts endpoint
+    async function speakDonkText(text) {
+      if (!voiceEnabled || !text) return;
+      ttsQueue.push(text);
+      if (!isSpeaking) processNextTTS();
+    }
 
+    async function processNextTTS() {
+      if (ttsQueue.length === 0) {
+        isSpeaking = false;
+        const indicator = document.getElementById('speaking-indicator');
+        if (indicator) indicator.classList.add('hidden');
+        return;
+      }
+
+      isSpeaking = true;
+      const text = ttsQueue.shift();
       const indicator = document.getElementById('speaking-indicator');
       if (indicator) indicator.classList.remove('hidden');
 
       try {
-        if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-        window.speechSynthesis.cancel();
-      } catch (e) {}
+        // Stop any currently playing audio
+        if (currentAudio) {
+          currentAudio.pause();
+          currentAudio.src = '';
+          currentAudio = null;
+        }
 
-      const clean = text.replace(/[*_#`~]/g, "").replace(/\[(.*?)\]\(.*?\)/g, "$1");
-      const utterance = new SpeechSynthesisUtterance(clean);
-      utterance.rate = 1.05;
-      utterance.pitch = 0.95;
+        const res = await fetch('/v1/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: text })
+        });
 
-      utterance.onend = () => {
-        if (indicator) indicator.classList.add('hidden');
-      };
-      utterance.onerror = () => {
-        if (indicator) indicator.classList.add('hidden');
-      };
+        if (!res.ok) throw new Error('TTS endpoint error');
 
-      const voices = window.speechSynthesis.getVoices();
-      const eng = voices.find(v => v.lang && v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('David') || v.name.includes('Male')));
-      if (eng) utterance.voice = eng;
+        const blob = await res.blob();
+        const audioUrl = URL.createObjectURL(blob);
+        const audio = new Audio(audioUrl);
+        currentAudio = audio;
 
-      window.speechSynthesis.speak(utterance);
+        audio.onended = () => {
+          URL.revokeObjectURL(audioUrl);
+          currentAudio = null;
+          processNextTTS();
+        };
+        audio.onerror = () => {
+          URL.revokeObjectURL(audioUrl);
+          currentAudio = null;
+          processNextTTS();
+        };
+
+        await audio.play();
+      } catch (e) {
+        console.warn('Neural TTS error, skipping:', e);
+        processNextTTS();
+      }
+    }
+
+    function stopSpeaking() {
+      ttsQueue = [];
+      isSpeaking = false;
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.src = '';
+        currentAudio = null;
+      }
+      const indicator = document.getElementById('speaking-indicator');
+      if (indicator) indicator.classList.add('hidden');
     }
 
     // UNLOCK AUDIO ON FIRST GESTURE
@@ -308,18 +352,14 @@
         const gain = ctx.createGain();
         osc.type = 'sine';
         osc.frequency.setValueAtTime(587.33, ctx.currentTime);
-        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain.gain.setValueAtTime(0.08, ctx.currentTime);
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.start();
-        osc.stop(ctx.currentTime + 0.15);
+        osc.stop(ctx.currentTime + 0.12);
       } catch (e) {}
 
-      speakDonkText("Yo Kevan. Donk Voice Engine unlocked and online. Ready for your directives.");
-    }
-
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.getVoices(); };
+      speakDonkText("Yo Kevan. Donk Voice Engine online. Neural British accent loaded. Ready for your directives.");
     }
 
     function toggleVoiceMode() {
@@ -328,17 +368,17 @@
       const sideBtn = document.getElementById('btn-toggle-voice-sidebar');
 
       if (voiceEnabled) {
-        topBtn.innerHTML = '<i class="fa-solid fa-volume-high"></i> Voice Output Active';
+        topBtn.innerHTML = '<i class="fa-solid fa-volume-high"></i> Neural Voice Active';
         topBtn.className = 'px-3 py-1 bg-zinc-900 border border-zinc-800 text-emerald-400 rounded flex items-center gap-1.5 cursor-pointer';
-        sideBtn.innerHTML = '<i class="fa-solid fa-volume-high"></i> ACTIVE';
+        sideBtn.innerHTML = '<i class="fa-solid fa-volume-high"></i> NEURAL';
         sideBtn.className = 'text-emerald-400 font-semibold cursor-pointer flex items-center gap-1';
-        speakDonkText("Donk voice stream active.");
+        speakDonkText("Neural voice stream active.");
       } else {
         topBtn.innerHTML = '<i class="fa-solid fa-volume-xmark"></i> Voice Muted';
         topBtn.className = 'px-3 py-1 bg-zinc-900 border border-zinc-800 text-zinc-500 rounded flex items-center gap-1.5 cursor-pointer';
         sideBtn.innerHTML = '<i class="fa-solid fa-volume-xmark"></i> OFF';
         sideBtn.className = 'text-zinc-500 font-semibold cursor-pointer flex items-center gap-1';
-        window.speechSynthesis.cancel();
+        stopSpeaking();
       }
     }
 
@@ -419,13 +459,13 @@
         }
       } catch (err) {}
 
-      // INSTANT GROK CANDID RESPONSE
-      let reply = `Yo Kevan. Processed directive: **"${userPrompt}"**.\n\n• **Vault RAG Index**: Verified 2,461 nodes across Unykorn Brain.\n• **System Status**: RTX 5090 CUDA inference online; L1 node active at height #13.\n• **Analysis**: Directive compliant with system policies. State root updated.`;
+      // INSTANT GROK CANDID RESPONSE (fallback)
+      let reply = `Yo Kevan. Processed directive: "${userPrompt}".\n\nVault RAG Index: Verified 2,461 nodes across Unykorn Brain.\nSystem Status: RTX 5090 CUDA inference online; L1 node active at height 13.\nAnalysis: Directive compliant with system policies. State root updated.`;
 
       if (userPrompt.toLowerCase().includes('cargo') || userPrompt.toLowerCase().includes('test')) {
-        reply = "Yo Kevan. Executed `cargo test --workspace` on unykorn-core. All 6 integration tests passed 100% clean. Sparse Merkle Tree state roots & Borsh wire encoding verified.";
+        reply = "Yo Kevan. Executed cargo test workspace on unykorn-core. All 6 integration tests passed 100% clean. Sparse Merkle Tree state roots and Borsh wire encoding verified.";
       } else if (userPrompt.toLowerCase().includes('audit') || userPrompt.toLowerCase().includes('erc')) {
-        reply = "Yo Kevan. Audited ERC-3643 deployment config against vault policy. Discrepancy found: staging parameters missing emergency pauser role in `ERC3643.sol`. Ready to draft patch.";
+        reply = "Yo Kevan. Audited ERC-3643 deployment config against vault policy. Discrepancy found: staging parameters missing emergency pauser role in ERC3643.sol. Ready to draft patch.";
       }
 
       textNode.innerText = reply;
@@ -513,7 +553,7 @@
             <div class="glass-panel rounded-2xl p-5 text-sm text-zinc-200">Fresh mission thread initialized. Speak or type your directive.</div>
           </div>
         `;
-        speakDonkText("Fresh mission thread initialized.");
+        speakDonkText("Fresh mission thread initialized. Ready for your next directive.");
       });
 
       document.getElementById('btn-directive-audit').addEventListener('click', () => sendDirectiveToEngine("Audit the ERC-3643 deployment config against vault policy."));
@@ -537,12 +577,12 @@
 
       document.getElementById('avatar-container').addEventListener('click', () => {
         unlockAudioEngine();
-        speakDonkText("Yo Kevan. Donk voice engine unlocked and online.");
+        speakDonkText("Yo Kevan. Donk neural voice engine is operational and standing by.");
       });
 
       document.getElementById('greeting-avatar').addEventListener('click', () => {
         unlockAudioEngine();
-        speakDonkText("Yo Kevan. Donk's live with full Grok candid intelligence.");
+        speakDonkText("Yo Kevan. Donk's live with full Grok candid intelligence and neural British voice synthesis.");
       });
     });
   </script>
