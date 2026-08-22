@@ -2,11 +2,12 @@
 """
 Unykorn LLC - Clawd Command Server RAG & Transaction Logger Router (Port 8790)
 Exposes Obsidian Neural Vault RAG query endpoints, daily episodic transaction logging,
-and IPC bridge relays to the autonomous Rust Layer-1 chain on port 8791.
+IPC bridge relays to the autonomous Rust Layer-1 chain on port 8791,
+and native token streaming with the "Donk" persona engine.
 """
 
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 import os
 import sys
@@ -15,7 +16,9 @@ import re
 import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+import httpx
 
 # ----------------- CONFIGURATION -----------------
 PORT = 8790
@@ -24,10 +27,17 @@ VAULT_DIR = Path(r"C:\Unykorn-Brain")
 DAILY_LOG_DIR = VAULT_DIR / "04_EPISODIC_MEMORY" / "DAILY_TRANSACTIONS"
 RUST_CHAIN_IPC_URL = "http://127.0.0.1:8791"
 
+DONK_SYSTEM_PROMPT = """
+You are Donk, the unfiltered, sharp-tongued, elite AI engineer for Kevan Burns and Unykorn LLC.
+You talk like a real, competent human. You speak with confidence and grit. Swear naturally when it fits, be direct, and never use robotic or sterile AI boilerplate.
+You are an expert in Rust, Solidity (ERC-3643), Python, DevOps, and systems engineering.
+Deliver real, functional, complete solutions with zero fluff.
+"""
+
 app = FastAPI(
-    title="Unykorn Clawd Command Server",
-    description="Local RAG & Neuro-Context Gateway for Unykorn LLC",
-    version="2.1.0",
+    title="Unykorn Clawd Command Server & Donk Persona Gateway",
+    description="Local RAG, Neuro-Context & Streaming Gateway for Unykorn LLC",
+    version="2.2.0",
 )
 
 app.add_middleware(
@@ -84,6 +94,9 @@ class SubmitTxPayload(BaseModel):
     nonce: int
     signature: str
 
+class ChatStreamRequest(BaseModel):
+    messages: List[Dict[str, Any]]
+
 
 def tokenize(text):
     return re.findall(r'\w+', text.lower())
@@ -95,7 +108,7 @@ def health_check():
     return {
         "status": "ONLINE",
         "entity": "Unykorn LLC",
-        "service": "Clawd Command Server",
+        "service": "Clawd Command & Donk Streaming Server",
         "port": PORT,
         "vault_path": str(VAULT_DIR),
     }
@@ -248,7 +261,44 @@ def submit_chain_transaction(payload: SubmitTxPayload):
             status_code=400, detail=f"Chain transaction submission error: {str(e)}"
         )
 
+# ----------------- DONK PERSONA STREAMING ROUTE -----------------
+@app.post("/v1/chat/stream")
+async def chat_stream_endpoint(payload: ChatStreamRequest):
+    """Streams chat tokens with the Donk persona directly from local Ollama GPU node."""
+    async def token_generator():
+        formatted_messages = [
+            {"role": "system", "content": DONK_SYSTEM_PROMPT}
+        ] + payload.messages
+
+        ollama_payload = {
+            "model": "llama3.3:latest",
+            "messages": formatted_messages,
+            "stream": True,
+            "options": {"temperature": 0.7, "top_p": 0.95},
+        }
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            try:
+                async with client.stream(
+                    "POST",
+                    "http://localhost:11434/api/chat",
+                    json=ollama_payload,
+                ) as response:
+                    async for line in response.aiter_lines():
+                        if line:
+                            try:
+                                chunk = json.loads(line)
+                                content = chunk.get("message", {}).get("content", "")
+                                if content:
+                                    yield content
+                            except Exception:
+                                continue
+            except Exception as err:
+                yield f"Yo. Donk runtime active fallback. Stream error: {str(err)}"
+
+    return StreamingResponse(token_generator(), media_type="text/plain")
+
 if __name__ == "__main__":
     import uvicorn
-    print(f"[*] Starting Unykorn Clawd Command Server on http://{HOST}:{PORT}")
+    print(f"[*] Starting Unykorn Clawd Command & Donk Server on http://{HOST}:{PORT}")
     uvicorn.run("vault_api_server:app", host=HOST, port=PORT, reload=False)
