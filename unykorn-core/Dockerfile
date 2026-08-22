@@ -2,10 +2,11 @@ FROM rust:1.80-slim AS builder
 WORKDIR /usr/src/unykorn
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    pkg-config libssl-dev libclang-dev clang build-essential && \
+    pkg-config libssl-dev clang build-essential && \
     rm -rf /var/lib/apt/lists/*
 
 COPY . .
+
 RUN cargo build --release --bin unykorn-node
 
 FROM debian:bookworm-slim
