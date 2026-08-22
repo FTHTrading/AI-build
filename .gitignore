@@ -1,0 +1,34 @@
+# Unykorn LLC — AI Build GitIgnore
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Python & AI Models
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+*.safetensors
+*.bin
+*.ckpt
+*.onnx
+.chroma_db/
+
+# System & OS
+.DS_Store
+Thumbs.db
+*.log
+tmp/
+temp/
+
+# Environment Variables & Secrets
+.env
+.env.local
+*.pem
+*.key
